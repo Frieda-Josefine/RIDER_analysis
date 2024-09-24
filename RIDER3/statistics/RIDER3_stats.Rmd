@@ -1,0 +1,769 @@
+---
+title: "RIDER Experiment 3"
+output:
+  html_document:
+    theme: sandstone
+    toc: yes
+    toc_depth: '1'
+    df_print: paged
+
+date: "2024-07-16"
+author: Frieda Born
+e-mail: born@mpib-berlin.mpg.de
+---
+
+This document provides an the statistical tests provided in the paper ordered along the sub sections of our publication. We investigate how testing and (de)prioritization during **Working** **Memory** influences how well something sticks to **Long-term** **Memory**. In the following you find the results for *RIDER3*, which focuses on testing the effects of a different test format (forced binary choice).
+There are separate documents proving the statistical tests for Exp. 1 & Exp. 2 (see RIDER1_stats.Rmd & RIDER2_stats.Rmd).
+
+<br>
+<br>
+<br>
+
+```{r setup environment, include=FALSE,fig.dim = c(4, 2)}
+knitr::opts_chunk$set(echo = TRUE)
+# surpress warnings
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+#clean environment
+rm(list = ls()) 
+
+#Libraries
+library(plyr) #Ssplitting, applying and combining Data
+library(dplyr) # for general data manipulation
+library(ggplot2) # for visualizations
+library(purrr)#working with functions and vectors
+library(stringr)#working with strings
+library(purrr)# for plotting
+library(tidyverse)#different aspects of data processing
+library(reshape)# for general data manipulation
+library(scico)#colour palettes fpr plotting
+library("readxl")
+library(circular)
+library(Rmisc)
+library(ggpubr)# for plotting
+library(rstatix)#for stats
+library(viridis)# for nice plotting colors
+library(data.table)
+library(BayesFactor)#for performing a Bayesian t-test
+library(cowplot)#for plotting
+library(ggstatsplot)
+library(formatR)
+library(PupillometryR)
+library(sm)
+library(hrbrthemes)#nice plotting
+library(viridis)#nice plotting
+library(gridExtra)
+library(plotly)# intersczive plotting
+ library(ggpubr)
+`%notin%` <- Negate(`%in%`)
+```
+
+```{r loading data, include=FALSE}
+## Please note, the loading of data looks a bit more complicated here, which results from the second testing round we conducted
+
+# RIDER3a data
+data_WM_V2 <- read.csv("/Users/born/Documents/Upside_down_task/client/public/WM_data_V2.csv",na.strings=c("","NA"))
+data_LTM_V2 <- read.csv("/Users/born/Documents/Upside_down_task/client/public/LTM_data_V2.csv",na.strings=c("","NA"))
+
+# data for nacherhebung
+data_WM_V2n <- read.csv("/Users/born/Documents/Upside_down_task/client/public/WM_data_V2_nacherhebung.csv",na.strings=c("","NA"))
+data_LTM_V2n <- read.csv("/Users/born/Documents/Upside_down_task/client/public/LTM_data_V2_nacherhebung.csv",na.strings=c("","NA"))
+
+# Add ".2" to each participant name in the pilot df to make visibly who is the pilot participant
+data_WM_V2n$participant <- paste0(data_WM_V2n$participant, ".2")
+data_LTM_V2n$participant <- paste0(data_LTM_V2n$participant, ".2")
+
+# Delete specified columns
+data_WM_V2n <- subset(data_WM_V2n, select = -c(participant.1, trial_type.1, new_column))
+data_LTM_V2n <- subset(data_LTM_V2n, select = -c(new_column))
+
+# These are the final complete dfs for Exp. 3, which contain all data from the first and second testing round
+data_WM_V2 <- rbind(data_WM_V2,data_WM_V2n)
+data_LTM_V2 <- rbind(data_LTM_V2,data_LTM_V2n)
+```
+
+```{r calculating accurcy1, exclusion of participants and missed response trials RIDER3, include=FALSE}
+
+# # pivot longer
+# data_WM_long_V2<- data_WM_V2 %>% pivot_longer(cols=c('accuracy_t1','accuracy_t2'),names_to='attention_condition',values_to='accuracy')
+# 
+# # extracting numeric reaction times
+# data_WM_V2$adjust_keys_t1_numeric <- apply(data_WM_V2, 1, function(x) as.numeric(gsub("\\[|\\]", "", x["log_response_t1.rt"])))
+# 
+# 
+# data_WM_V2$adjust_keys_t2_numeric <- apply(data_WM_V2, 1, function(x) as.numeric(gsub("\\[|\\]", "", x["log_response_t2.rt"])))
+# 
+# # create separate df for reaction times
+# data_WM_rt_V2<- data_WM_V2 %>% pivot_longer(cols=c('adjust_keys_t1_numeric','adjust_keys_t2_numeric'),names_to='rt_test',values_to='rt')
+# 
+# # Total number of trials per participant
+# total_trials_per_participant <- data_WM_V2 %>%
+#   group_by(participant) %>%
+#   summarize(total_trials = n())
+# 
+# # Calculate the number of excluded trials per participant
+# excluded_trials <- data_WM_V2 %>%
+#   filter(adjust_keys_t1_numeric > 3 | adjust_keys_t2_numeric > 3) %>%
+#   group_by(participant) %>%
+#   summarize(excluded_trials_count = n()) %>%
+#   right_join(total_trials_per_participant, by = "participant") %>%
+#   mutate(excluded_trials_count = replace_na(excluded_trials_count, 0)) %>%
+#   mutate(excluded_trials_percent = (excluded_trials_count / total_trials) * 100)
+# 
+# 
+# # Calculate the average, minimum, and maximum percentage of excluded trials per participant
+# excluded_trials_summary <- excluded_trials %>%
+#   summarize(
+#     average_excluded_trials_percent = mean(excluded_trials_percent, na.rm = TRUE),
+#     min_excluded_trials_percent = min(excluded_trials_percent, na.rm = TRUE),
+#     max_excluded_trials_percent = max(excluded_trials_percent, na.rm = TRUE)
+#   )
+# 
+# # Print the resulting summary dataframe to inspect it
+# print(excluded_trials_summary)
+# 
+# ## Stats of misssed responses in LTM
+# # Total number of trials per participant
+# total_trials_per_participant <- data_LTM_V2 %>%
+#   group_by(participant) %>%
+#   summarize(total_trials = n())
+# 
+# # Calculate the number of excluded trials per participant
+# excluded_trials <- data_LTM_V2 %>%
+#   filter(time_out_ltm == "1" ) %>%
+#   group_by(participant) %>%
+#   summarize(excluded_trials_count = n()) %>%
+#   right_join(total_trials_per_participant, by = "participant") %>%
+#   mutate(excluded_trials_count = replace_na(excluded_trials_count, 0)) %>%
+#   mutate(excluded_trials_percent = (excluded_trials_count / total_trials) * 100)
+# 
+# 
+# # Calculate the average, minimum, and maximum percentage of excluded trials per participant
+# excluded_trials_summary <- excluded_trials %>%
+#   summarize(
+#     average_excluded_trials_percent = mean(excluded_trials_percent, na.rm = TRUE),
+#     min_excluded_trials_percent = min(excluded_trials_percent, na.rm = TRUE),
+#     max_excluded_trials_percent = max(excluded_trials_percent, na.rm = TRUE)
+#   )
+# 
+# # Print the resulting summary dataframe to inspect it
+# print(excluded_trials_summary)
+```
+
+
+
+
+```{r calculating accurcy RIDER2, include=FALSE}
+
+# Group the data by participant and remove the first 6 trials for each participant
+data_WM_V2 <- data_WM_V2 %>%
+  group_by(participant) %>%
+  slice(7:n()) %>%
+  ungroup()
+
+# Identify the row indices that have been deleted
+practice_trials <- data_WM_V2 %>%
+  group_by(participant) %>%
+  slice(1:6)
+
+#calculating the correct fixed orientations for the 2-item trials:
+#depending on whether the stimulus was presented in image 1 or image 2
+data_WM_V2$startOri1 <- as.character(data_WM_V2$startOri1)
+
+data_WM_V2 <- data_WM_V2 %>%
+  rowwise() %>%
+  mutate(fixedOri_t1 = ifelse((test1 == image1), startOri1,ifelse((test1 ==  image2),startOri2,NA)))
+
+data_WM_V2 <- data_WM_V2 %>%
+  rowwise() %>%
+  mutate(fixedOri_t2 = ifelse((test2 == image1), startOri1,ifelse((test2 ==  image2),startOri2,NA)))
+
+
+# calculate remainder of this_ori variable to adjust for cases that are beyond 360 degrees
+data_WM_V2 <- data_WM_V2 %>% mutate(accuracy_t1 = log_response_t1.corr)#Modulus (Remainder from division)
+data_WM_V2 <- data_WM_V2 %>% mutate(accuracy_t2 = log_response_t2.corr)#Modulus (Remainder from division)
+# 
+# # calculating accuracy for test 1 and test 2
+data_WM_V2$accuracy_t1 <- as.numeric(data_WM_V2$accuracy_t1)
+
+data_WM_V2$accuracy_t2 <- as.numeric(data_WM_V2$accuracy_t2)
+
+# I remove the rows in which either for test 1 or test 2 the participant did not answer in time
+
+data_WM_V2<-data_WM_V2[!(data_WM_V2$imgChoice1=='stim/respond_faster.png'),]
+
+data_WM_V2 <- data_WM_V2 %>%
+  filter(is.na(imgChoice2) | imgChoice2 != "stim/respond_faster.png")
+
+# pivot longer
+data_WM_long_V2<- data_WM_V2 %>% pivot_longer(cols=c('accuracy_t1','accuracy_t2'),names_to='attention_condition',values_to='accuracy')
+
+data_LTM_V2 <- rbind.fill(data_LTM_V2,data_WM_V2[c("test1", "test2","participant","image1","image2")])
+
+# defining the menemonic distance conditions
+
+data_LTM_V2 <- data_LTM_V2  %>%
+    group_by(participant)%>%
+    mutate(mnemonic_diss = case_when(ltm_image %in% test1 & ltm_trial == 'baseline' ~ "Baseline",
+                                     ltm_image %in%  test1 & ltm_image %in%  image2  ~ "Image 2- Test 1",
+                                     ltm_image %in%  test1 & ltm_image %in%  image1  ~ "Image 1- Test 1",
+                                     ltm_image %in%  test2 & ltm_image %in%  image2 ~ "Image 2- Test 2",
+                                     ltm_image %in%  test2 & ltm_image %in% image1 ~ "Image 1- Test 2",
+                                     ltm_image %notin% test1 & ltm_image %notin% test2 ~ "Never tested"))
+
+# defining the simple trial types (as broader experimental conditions)
+data_LTM_V2 <- data_LTM_V2 %>%
+  group_by(participant)%>%
+  mutate(trial_type = case_when(ltm_trial == 'baseline' ~ "Baseline",
+                                 ltm_image %in%  test1  ~   "Test 1",
+                                 ltm_image %in%  test2  ~   "Test 2",
+                                 ltm_image %notin% test1 & ltm_image %notin% test2 ~ "Never tested"))
+
+data_LTM_V2 <- data_LTM_V2 %>%
+  group_by(participant)%>%
+  mutate(image_presentation = case_when(ltm_trial == 'baseline' ~ "Baseline",
+                                 ltm_image %in%  test1 & ltm_image %in% image1  ~   "Img1-Test1",
+                                 ltm_image %in%  test1 & ltm_image %in% image2  ~   "Img2-Test1",
+                                 ltm_image %in%  test2 & ltm_image %in% image1  ~   "Img1-Test2",
+                                 ltm_image %in%  test2 & ltm_image %in% image2  ~   "Img2-Test2",
+                                 ltm_image %notin% test1 & ltm_image %notin% test2 & ltm_image %in% image1 ~ "Img1-NT",
+                                 ltm_image %notin% test1 & ltm_image %notin% test2 & ltm_image %in% image2 ~ "Img2-NT"))
+
+# calculate ltm accuracy
+data_LTM_V2 <- data_LTM_V2 %>% mutate(ori_ltm = this_ori_ltm %% 360)#Modulus (Remainder from division)
+
+
+# calculating accuracy for LTM test
+
+data_LTM_V2 <- data_LTM_V2 %>% 
+  rowwise() %>%
+  mutate(min_angle_ltm = abs(ori_ltm -fixedOri_ltm))%>%
+  mutate(max_angle_ltm = 360-abs(ori_ltm -fixedOri_ltm))
+
+data_LTM_V2 <- transform(data_LTM_V2, accuracy_ltm = pmin(min_angle_ltm, max_angle_ltm))#angular difference
+
+data_LTM_V2 <- data_LTM_V2 %>% 
+  rowwise() %>%
+  mutate(angle_ltm = this_ori_ltm -fixedOri_ltm)
+
+#remove extra WM rows again
+data_LTM_V2 <- data_LTM_V2[rowSums(is.na(data_LTM_V2)) == 0|rowSums(is.na(data_LTM_V2)) == 1| rowSums(is.na(data_LTM_V2)) == 2|rowSums(is.na(data_LTM_V2)) == 3|rowSums(is.na(data_LTM_V2)) == 4,]
+
+
+# remove participants also from LTM data (same participants as removed for WM)
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==39),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==28),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==69),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==62),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==12),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==75),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==71),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==44),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==68),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==29),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==81),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==56),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==77),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==79),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==17),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==46),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==86),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==36),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==60),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==73),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==52),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==78),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==89),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==47),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==43),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==34),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==74),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==97),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==93),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==98),]
+
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==1.2),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==3.2),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==5.2),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==13.2),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==17.2),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==26.2),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==31.2),]
+data_LTM_V2<-data_LTM_V2[!(data_LTM_V2$participant==42.2),]
+
+#normal trial types
+data_WM_long_V2 <- data_WM_long_V2  %>% 
+  mutate(trial_type_new = case_when(
+    baselinePresent  == 1 ~ "Baseline",
+    trial_type !="baseline" & attention_condition == "accuracy_t1"  ~ "Test 1",
+    trial_type !="baseline" & attention_condition == "accuracy_t2" ~ "Test 2"))
+
+# image presentation
+data_WM_long_V2 <- data_WM_long_V2  %>% 
+  mutate(image_presentation = case_when(
+    baselinePresent  == 1 ~ "Baseline",
+    image1 == test1 & attention_condition == "accuracy_t1"  ~ "Img1-Test1",
+    image1 == test2 & attention_condition == "accuracy_t2" ~ "Img1-Test2",
+    image2 == test2 & attention_condition == "accuracy_t2" ~ "Img2-Test2",
+    image2 == test1 & attention_condition == "accuracy_t1" ~ "Img2-Test1"))
+
+
+#drop rows that are NA
+data_WM_long_V2 <-data_WM_long_V2 %>% drop_na(accuracy)
+
+
+# select participants that need to be excluded due to average performance < 0.6
+data_WM_mean_acc <- data_WM_long_V2 %>%
+  group_by(participant) %>%
+  summarize(mean_acc = mean(accuracy))
+
+# remove participant with too low performance average
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==39),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==28),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==69),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==62),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==12),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==75),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==71),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==44),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==68),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==29),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==81),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==56),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==77),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==79),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==17),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==46),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==86),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==36),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==60),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==73),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==52),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==78),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==89),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==47),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==43),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==34),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==74),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==97),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==93),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==98),]
+
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==1.2),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==3.2),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==5.2),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==13.2),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==17.2),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==26.2),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==31.2),]
+data_WM_long_V2<-data_WM_long_V2[!(data_WM_long_V2$participant==42.2),]
+
+```
+# Statistics
+
+<h3 style="text-align: center; color: orange;">**WM Performance**</h3>
+
+#### Performance Overview WM
+
+```{r RIDER2 Performance Overview WM, echo = FALSE}
+summary_stats_participant_trial_type <- summarySE(data_WM_long_V2, measurevar = "accuracy", groupvars = c("trial_type_new","participant"),na.rm = T)
+summary_study_level_trial_type <- summarySE(summary_stats_participant_trial_type, measurevar = "accuracy", groupvars = c("trial_type_new"),na.rm = T)
+summary_study_level_trial_type
+```
+
+#### Multiple comparisons of WM performance across conditions
+
+```{r RIDER2 statistics and pairwise comparisons, echo = FALSE}
+data_WM_long_V2$test <-"WM"
+
+data_subset_WM <- data_WM_long_V2%>%
+  select(accuracy, trial_type_new,image_presentation,participant,test)
+
+
+WM_data_summary <-data_subset_WM %>%
+  group_by(test, trial_type_new, participant) %>%
+  get_summary_stats(accuracy, type = "mean_sd")
+
+print("paired t test between Test 1 and 2 in WM")
+WM_data_summary %>%
+  pairwise_t_test(
+    mean ~ trial_type_new, paired = TRUE,
+    p.adjust.method = "holm")
+```
+
+### ANOVA Results WM 
+#### (2 x 2 WM Sample Position (1/2) and Test (1/2)
+
+```{r RIDER3 2x2 ANOVA WM, echo = FALSE}
+
+data_LTM_V2$test <- "LTM"
+data_WM_long_V2$test <-"WM"
+
+data_subset <- data_LTM_V2 %>%
+  select(accuracy_ltm, trial_type,image_presentation,participant,test)
+
+data_subset_WM <- data_WM_long_V2%>%
+  select(accuracy, trial_type_new,image_presentation,participant,test)
+
+
+colnames(data_subset)[1] = "accuracy"
+colnames(data_subset)[2] = "trial_type_new"
+
+
+print("WM: This 2  x 2 ANOVA focuses on the stimulus effects in the WM task (1/2 sample, 1/2 test)")
+
+filtered_data <- data_subset_WM %>%
+  filter(test %in% c("WM"))
+
+filtered_data <- filtered_data %>%
+  filter(image_presentation %in% c("Img2-Test1", "Img1-Test1", "Img2-Test2", "Img1-Test2"))
+
+# Step 2: Further filter rows based on exp_condition and task
+filtered_data <- filtered_data %>%
+  filter(trial_type_new %in% c("Test 1", "Test 2"))
+
+# Step 3: Rename variable levels
+filtered_data <- filtered_data %>%
+  mutate(image_presentation = sub("-Test1$", "", image_presentation),
+         image_presentation = sub("-Test2$", "", image_presentation))
+
+summary_image_pres <-filtered_data %>%
+  group_by(trial_type_new, participant,image_presentation) %>%
+  get_summary_stats(accuracy, type = "mean_sd")
+
+summary_image_pres <- summary_image_pres %>%
+  mutate(trial_type_new = recode(trial_type_new,"Test 1" = "Test1","Test 2" = "Test2"))
+
+summary_image_pres$trial_type_new <- factor(summary_image_pres$trial_type_new)
+summary_image_pres$image_presentation <- factor(summary_image_pres$image_presentation)
+
+res.aov_image_presWM <- anova_test(data = summary_image_pres, dv = mean, wid = participant, within = c(image_presentation,trial_type_new))
+
+get_anova_table(res.aov_image_presWM)
+
+```
+
+#### Testing if general WM performance was significantly above chance
+WM performance was hardly modulated by task factors, albeit performance levels that were significantly above chance
+
+```{r RIDER2 performance above chance, echo = FALSE}
+
+participant_means_summary <- data_WM_long_V2 %>%
+  group_by(participant) %>%
+  summarize(mean_accuracy = mean(accuracy, na.rm = TRUE))
+
+t_test_result <- t.test(participant_means_summary$mean_accuracy, mu = 0.5)
+# Print the results of the t-test
+print(t_test_result)
+
+# participant_condition_means <- data_WM_long_V2 %>%
+#   group_by(participant, trial_type) %>%
+#   summarize(mean_accuracy = mean(accuracy, na.rm = TRUE))
+# 
+# # Unique list of experimental conditions
+# conditions <- unique(participant_condition_means$trial_type)
+# 
+# # Placeholder list for t-test results
+# t_test_results <- list()
+# 
+# # Loop through each condition and perform a t-test
+# for (cond in conditions) {
+#   # Filter data for the current condition
+#   data_cond <- filter(participant_condition_means, trial_type == cond)
+#   
+#   # Conduct t-test against chance level of 0.5
+#   t_test_results[[cond]] <- t.test(data_cond$mean_accuracy, mu = 0.5)
+# }
+
+```
+
+
+<h3 style="text-align: center; color: blue;">**LTM Performance**</h3>
+#### Comparison of conditions
+
+```{r RIDER3 2x2 ANOVA LTM, echo = FALSE}
+
+print("The following test checks for a significant difference in performance between NP and Test2 ")
+
+## Instead of calculating all pairwise comparisons, we are here only interested in NP vs. Test 2
+
+
+filtered_data <- data_subset %>%
+  filter(trial_type_new %in% c("Test 2", "Never tested"))
+
+# Calculate summary statistics if needed
+LTM_data_summary <- filtered_data %>%
+  group_by(trial_type_new, participant) %>%
+  get_summary_stats(accuracy, type = "mean_sd")
+
+print("paired t test between Test 2 and Never tested in LTM")
+paired_t_test_results <- LTM_data_summary %>%
+  pairwise_t_test(
+    mean ~ trial_type_new, paired = TRUE,
+    p.adjust.method = "holm"
+  )
+
+print(paired_t_test_results)
+
+LTM_data_summary <-data_subset %>%
+  group_by(trial_type_new, participant) %>%
+  get_summary_stats(accuracy, type = "mean_sd")
+
+print("And here are all the possible tests for a better overview (not included in the manusscript")
+LTM_data_summary %>%
+  pairwise_t_test(
+    mean ~ trial_type_new, paired = TRUE,
+    p.adjust.method = "holm")
+
+
+```
+
+#### Mean performances across conditions
+Across conditions in Exp. 3, participants were again more accurate in recalling the orientations from one-sample WM trials compared to two-sample trials.
+```{r RIDER3 LTM performance means, echo = FALSE}
+summary_stats_participant_LTM <- summarySE(data_LTM_V2, measurevar = "accuracy_ltm", groupvars = c("trial_type","participant"),na.rm = T)
+summary_study_level_LTM <- summarySE(summary_stats_participant_LTM, measurevar = "accuracy_ltm", groupvars = c("trial_type"),na.rm = T)
+summary_study_level_LTM
+```
+
+#### Comparison one-sample trials to two-sample trials
+
+```{r RIDER3 comparisons one-sample and two-sample, echo = FALSE}
+# For averaging the two sample trial results, I am combining Test 1 and Test 2
+
+data_subset_load <- data_subset %>%
+  mutate(sample_trials = case_when(
+    trial_type_new == "Baseline" ~ 1,
+    trial_type_new %in% c("Test 1", "Test 2") ~ 2,
+    TRUE ~ NA_real_  # Assign NA if none of the conditions match
+  ))
+
+# Drop rows with NA in the sample_trials column (this concerns only the NP rows)
+data_subset_load <- drop_na(data_subset_load, sample_trials)
+
+data_summary_LTM_load <-data_subset_load %>%
+  group_by(sample_trials, participant) %>%
+  get_summary_stats(accuracy, type = "mean_sd")
+
+pairwise_comparisons_LTM_load <- data_summary_LTM_load %>%
+  pairwise_t_test(
+    mean ~ sample_trials, paired = TRUE,
+    p.adjust.method = "holm")
+
+pairwise_comparisons_LTM_load
+
+
+sample_trials_mean <- summarySE(data_summary_LTM_load, measurevar = "mean", groupvars = c("sample_trials"),na.rm = T)
+sample_trials_mean
+
+```
+
+
+### ANOVA Results LTM 
+#### (2 x 2 WM Sample Position (1/2) and Test (1/2)
+
+```{r RIDER3 2x2 ANOVA Results LTM , echo = FALSE}
+print("LTM: This 2  x 2 ANOVA focuses on the stimulus effects in the LTM task (1/2 sample, 1/2 test)")
+
+# Step 1: Filter rows based on stimulus_presentation
+
+filtered_data <- data_subset %>%
+  filter(test %in% c("LTM"))
+
+filtered_data <- filtered_data %>%
+  filter(image_presentation %in% c("Img2-Test1", "Img1-Test1", "Img2-Test2", "Img1-Test2"))
+
+# Step 2: Further filter rows based on exp_condition and task
+filtered_data <- filtered_data %>%
+  filter(trial_type_new %in% c("Test 1", "Test 2"))
+
+# Step 3: Rename variable levels
+filtered_data <- filtered_data %>%
+  mutate(image_presentation = sub("-Test1$", "", image_presentation),
+         image_presentation = sub("-Test2$", "", image_presentation))
+
+
+summary_image_pres <-filtered_data %>%
+  group_by(trial_type_new, participant,image_presentation) %>%
+  get_summary_stats(accuracy, type = "mean_sd")
+
+summary_image_pres <- summary_image_pres %>%
+  mutate(trial_type_new = recode(trial_type_new,"Test 1" = "Test1","Test 2" = "Test2"))
+
+summary_image_pres$trial_type_new <- factor(summary_image_pres$trial_type_new)
+summary_image_pres$image_presentation <- factor(summary_image_pres$image_presentation)
+
+res.aov_image_presWM <- anova_test(data = summary_image_pres, dv = mean, wid = participant, within = c(image_presentation,trial_type_new))
+
+get_anova_table(res.aov_image_presWM)
+
+print("This t-test addresses the primacy effect in the LTM conditions, showing generally higher performance for WM Sample 1")
+LTM_t_test2 <- summary_image_pres %>%
+  pairwise_t_test(
+    mean ~ image_presentation, paired = TRUE,
+    p.adjust.method = "holm")
+
+LTM_t_test2
+
+```
+
+#### Comparison of mean performance between Exp. 3 and Exp. 1 in the LTM task
+The subsequent LTM test procedure in Exp. 3 was identical to that in Exps. 1 and 2  (continuous reports). Compared to Exp. 1, the overall LTM accuracy in Exp. 3 was significantly lower.
+
+
+```{r Exp.1 data for comparison , echo = FALSE}
+
+## I need to import the data and LTM accuracy for Exp. 1 here, to be able to statistically compare it with Exp. 3
+
+# RIDER1 data
+
+data_WM <- read.csv("/Users/born/Documents/Upside_down_task/client/public/raw_data/WM_data.csv",na.strings=c("","NA"))
+data_LTM <- read.csv("/Users/born/Documents/Upside_down_task/client/public/raw_data/LTM_data.csv",na.strings=c("","NA"))
+
+# remove participant with sig. low WM performance also from LTM df
+data_LTM<-data_LTM[!(data_LTM$participant=='15'),]
+
+# preparing df for identification of trial types
+data_LTM <- rbind.fill(data_LTM,data_WM[c("test1", "test2","participant","image1","image2")])
+
+
+data_LTM <- data_LTM %>%
+  group_by(participant)%>%
+  mutate(trial_type = case_when(ltm_image %in% test1 & ltm_trial == 'baseline' ~ "Baseline",
+                                 ltm_image %in%  test1  ~   "Test 1",
+                                 ltm_image %in%  test2  ~   "Test 2",
+                                 ltm_image %notin% test1 & ltm_image %notin% test2 ~ "Never tested"))
+
+# calculate ltm accuracy
+data_LTM <- data_LTM %>% mutate(ori_ltm = this_ori_ltm %% 360)#Modulus (Remainder from division)
+
+# function angular difference
+angdiff <- function(alpha_deg, beta_deg) {
+  #The function assumes that the input angles alpha and beta are in radians
+  alpha_rad <- alpha_deg * pi / 180
+  beta_rad <- beta_deg * pi / 180
+  # calculation of the difference in angles
+  delta_rad <- alpha_rad - beta_rad
+  # If input angles alpha and beta are larger than 360°, the mod() function will correctly wrap them to the range of [-180,180] degrees interval.
+  delta_rad <- (delta_rad + pi) %% (2*pi) - pi
+  delta_deg <- delta_rad * 180 / pi
+  #the function outputs both the angular difference in degrees and in radians
+  return(list(delta_rad = delta_rad, delta_deg = delta_deg))
+}
+
+data_LTM$accuracy_ltm <- abs(apply(data_LTM[,c("ori_ltm", "fixedOri_ltm")], 1, function(x) angdiff(x[1], x[2])$delta_deg))
+
+#remove extra WM rows again
+data_LTM <- data_LTM[rowSums(is.na(data_LTM)) == 0|rowSums(is.na(data_LTM)) == 1| rowSums(is.na(data_LTM)) == 2|rowSums(is.na(data_LTM)) == 3|rowSums(is.na(data_LTM)) == 4,]
+
+```
+
+```{r Comparison Exp. 1 & Exp. 3, echo = FALSE}
+
+print("Results of an independant t-test")
+
+mean_performance_LTM <- summarySE(data_LTM, measurevar = "accuracy_ltm", groupvars = c("participant"),na.rm = T)
+
+mean_performance_LTM_V2 <- summarySE(data_LTM_V2, measurevar = "accuracy_ltm", groupvars = c("participant"),na.rm = T)
+
+print("The mean accuracy in the LTM is lower than in the WM task")
+# Calculate the mean
+mean_value <- mean(mean_performance_LTM$accuracy_ltm)
+mean_value_V2 <- mean(mean_performance_LTM_V2$accuracy_ltm)
+# Calculate the standard error
+se_value <- sd(mean_performance_LTM$accuracy_ltm) / sqrt(length(mean_performance_LTM$accuracy_ltm))
+se_value_V2 <- sd(mean_performance_LTM_V2$accuracy_ltm) / sqrt(length(mean_performance_LTM_V2$accuracy_ltm))
+# View the results (including NP)
+print(paste("Mean for Exp. 1:", mean_value))
+print(paste("Mean for Exp. 2:", mean_value_V2))
+print(paste("Standard Error for Exp. 1:", se_value))
+print(paste("Standard Error for Exp. 1:", se_value_V2))
+
+t.test(mean_performance_LTM$accuracy_ltm, mean_performance_LTM_V2$accuracy_ltm,paired = FALSE)
+
+
+data_LTM_filtered <- data_LTM %>%
+  filter(trial_type != "Never tested")
+
+data_LTM_V2_filtered <- data_LTM_V2 %>%
+  filter(trial_type != "Never tested")
+
+# Calculate the mean performance excluding "Never tested" trials
+mean_performance_LTM <- summarySE(data_LTM_filtered, measurevar = "accuracy_ltm", groupvars = c("participant"), na.rm = TRUE)
+mean_performance_LTM_V2 <- summarySE(data_LTM_V2_filtered, measurevar = "accuracy_ltm", groupvars = c("participant"), na.rm = TRUE)
+
+print("The mean accuracy in the LTM is lower than in the WM task")
+# Calculate the mean
+mean_value <- mean(mean_performance_LTM$accuracy_ltm)
+mean_value_V2 <- mean(mean_performance_LTM_V2$accuracy_ltm)
+
+se_value <- sd(mean_performance_LTM$accuracy_ltm) / sqrt(length(mean_performance_LTM$accuracy_ltm))
+se_value_V2 <- sd(mean_performance_LTM_V2$accuracy_ltm) / sqrt(length(mean_performance_LTM_V2$accuracy_ltm))
+
+print(mean_value)
+print(mean_value_V2)
+
+t.test(mean_performance_LTM$accuracy_ltm, mean_performance_LTM_V2$accuracy_ltm,paired = FALSE)
+
+```
+
+
+### Mixed Effeckts ANOVA Results LTM; Comparison Exp. 1 and 3
+#### (Between-subjects Factor Experiment (1/3) and within-subjects factor Test (Tested / NP)
+Before I show the visualisations of Exp. 2, I am including a 2x2 ANOVA between Exp. 1 & 3. Factor 1 compares perormance in Exp. 1/2 and Factor 2 compares NP vs. probed. The goal of this analysis is to better understand the role of WM-encoding and WM-tetsing in the performance reduction we see in Exp. 3
+```{r Mixed effects ANOVA, echo = FALSE}
+#Calculate means for Experiment 1, excluding "one-sample"
+exp1_means <- data_LTM %>%
+  filter(trial_type != "Baseline") %>%
+  group_by(participant, trial_type) %>%
+  summarise(mean_LTM = mean(accuracy_ltm, na.rm = TRUE), .groups = 'drop')
+
+# Calculate means for Experiment 2, excluding "one-sample"
+exp2_means <- data_LTM_V2 %>%
+  filter(trial_type != "Baseline") %>%
+  group_by(participant, trial_type) %>%
+  summarise(mean_LTM = mean(accuracy_ltm, na.rm = TRUE), .groups = 'drop')
+
+# indicate the exp. variable and if probing was done or not
+exp1_means$participant <- paste0("Exp1_", exp1_means$participant)  # Prefix Exp1_
+exp2_means$participant <- paste0("Exp2_", exp2_means$participant)  # Prefix Exp2_
+
+# indicate the exp. variable and if probing was done or not
+exp1_means$experiment <- 'Exp1'
+exp2_means$experiment <- 'Exp2'
+
+
+exp1_means <- exp1_means %>%
+  mutate(probing = case_when(
+    trial_type == "Never tested" ~ "NP",
+    trial_type %in% c("Test 1", "Test 2") ~ "P",
+    TRUE ~ as.character(trial_type)  # This line is optional, handling other unexpected cases
+  ))
+
+# For Experiment 2 dataframe
+exp2_means <- exp2_means %>%
+  mutate(probing = case_when(
+    trial_type == "Never tested" ~ "NP",
+    trial_type %in% c("Test 1", "Test 2") ~ "P",
+    TRUE ~ as.character(trial_type)  # This line is optional, handling other unexpected cases
+  ))
+
+combined_data_exp1_2 <- rbind(exp1_means, exp2_means)
+
+# I summarize the data further, as probing combines the variable trial_type = test 1 / test 2
+
+combined_data_exp1_2 <- combined_data_exp1_2 %>%
+  group_by(participant, experiment, probing) %>%
+  summarise(mean_LTM = mean(mean_LTM, na.rm = TRUE), .groups = 'drop')
+
+library("afex")
+Exp1_2_comparison <- aov_ez("participant", "mean_LTM", combined_data_exp1_2,
+                            within = "probing", between = "experiment",
+                            detailed = TRUE)
+
+# Print the summary of the ANOVA results
+print(summary(Exp1_2_comparison))
+
+
+
+
+```

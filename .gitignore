@@ -1,0 +1,13 @@
+# macOS system files
+.DS_Store
+
+# Ignore log files and databases
+*.log
+
+#ignore the powerpont presentation to not push big files to github
+ressources/HumanEval.pptx
+
+
+# adding participant datasheet that I use for piloting on my computer only
+participant01.xlsx
+~$participant01.xlsx
