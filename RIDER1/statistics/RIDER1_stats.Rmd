@@ -58,8 +58,8 @@ library(plotly)# intersczive plotting
 
 ```{r loading data, include=FALSE}
 # RIDER1 data
-data_WM <- read.csv("/Users/born/Documents/Upside_down_task/client/public/raw_data/WM_data.csv",na.strings=c("","NA"))
-data_LTM <- read.csv("/Users/born/Documents/Upside_down_task/client/public/raw_data/LTM_data.csv",na.strings=c("","NA"))
+data_WM <- read.csv("/path/to/data_location/WM_data.csv",na.strings=c("","NA"))
+data_LTM <- read.csv("/path/to/data_location/LTM_data.csv",na.strings=c("","NA"))
 ```
 
 

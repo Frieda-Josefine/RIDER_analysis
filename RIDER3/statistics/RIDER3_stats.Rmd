@@ -61,12 +61,12 @@ library(plotly)# intersczive plotting
 ## Please note, the loading of data looks a bit more complicated here, which results from the second testing round we conducted
 
 # RIDER3a data
-data_WM_V2 <- read.csv("/Users/born/Documents/Upside_down_task/client/public/WM_data_V2.csv",na.strings=c("","NA"))
-data_LTM_V2 <- read.csv("/Users/born/Documents/Upside_down_task/client/public/LTM_data_V2.csv",na.strings=c("","NA"))
+data_WM_V2 <- read.csv("path/to/data/location/WM_data_3.csv",na.strings=c("","NA"))
+data_LTM_V2 <- read.csv("path/to/data/location/LTM_data_3.csv",na.strings=c("","NA"))
 
 # data for nacherhebung
-data_WM_V2n <- read.csv("/Users/born/Documents/Upside_down_task/client/public/WM_data_V2_nacherhebung.csv",na.strings=c("","NA"))
-data_LTM_V2n <- read.csv("/Users/born/Documents/Upside_down_task/client/public/LTM_data_V2_nacherhebung.csv",na.strings=c("","NA"))
+data_WM_V2n <- read.csv("path/to/data/location/WM_data_3_second_testing_round.csv",na.strings=c("","NA"))
+data_LTM_V2n <- read.csv("path/to/data/location/LTM_data_3_second_testing_round.csv",na.strings=c("","NA"))
 
 # Add ".2" to each participant name in the pilot df to make visibly who is the pilot participant
 data_WM_V2n$participant <- paste0(data_WM_V2n$participant, ".2")
