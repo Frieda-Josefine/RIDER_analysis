@@ -61,12 +61,12 @@ library(plotly)# intersczive plotting
 ## Please note, the loading of data looks a bit more complicated here, which results from the second testing round we conducted
 
 # RIDER3a data
-data_WM_V2 <- read.csv("path/to/data/location/WM_data_3.csv",na.strings=c("","NA"))
-data_LTM_V2 <- read.csv("path/to/data/location/LTM_data_3.csv",na.strings=c("","NA"))
+data_WM_V2 <- read.csv("/Users/born/Documents/Upside_down_task/client/public/WM_data_V2.csv",na.strings=c("","NA"))
+data_LTM_V2 <- read.csv("/Users/born/Documents/Upside_down_task/client/public/LTM_data_V2.csv",na.strings=c("","NA"))
 
 # data for nacherhebung
-data_WM_V2n <- read.csv("path/to/data/location/WM_data_3_second_testing_round.csv",na.strings=c("","NA"))
-data_LTM_V2n <- read.csv("path/to/data/location/LTM_data_3_second_testing_round.csv",na.strings=c("","NA"))
+data_WM_V2n <- read.csv("/Users/born/Documents/Upside_down_task/client/public/WM_data_V2_nacherhebung.csv",na.strings=c("","NA"))
+data_LTM_V2n <- read.csv("/Users/born/Documents/Upside_down_task/client/public/LTM_data_V2_nacherhebung.csv",na.strings=c("","NA"))
 
 # Add ".2" to each participant name in the pilot df to make visibly who is the pilot participant
 data_WM_V2n$participant <- paste0(data_WM_V2n$participant, ".2")
@@ -384,10 +384,21 @@ WM_data_summary <-data_subset_WM %>%
   get_summary_stats(accuracy, type = "mean_sd")
 
 print("paired t test between Test 1 and 2 in WM")
-WM_data_summary %>%
+pairwise_results <- WM_data_summary %>%
   pairwise_t_test(
     mean ~ trial_type_new, paired = TRUE,
     p.adjust.method = "holm")
+
+effect_sizes <- WM_data_summary %>%
+  cohens_d(mean ~ trial_type_new, paired = TRUE)
+
+pairwise_results <- pairwise_results %>%
+  left_join(effect_sizes, by = c(".y.", "group1", "group2"))
+
+# View the final results
+pairwise_results
+
+
 ```
 
 ### ANOVA Results WM 
@@ -455,6 +466,13 @@ t_test_result <- t.test(participant_means_summary$mean_accuracy, mu = 0.5)
 # Print the results of the t-test
 print(t_test_result)
 
+# Calculate Cohen's d
+mean_diff <- mean(participant_means_summary$mean_accuracy)
+sd_diff <- sd(participant_means_summary$mean_accuracy)
+cohens_d <- (mean_diff - 0.5) / sd_diff
+# Print Cohen's d
+cat("Cohen's d:", round(cohens_d, 3), "\n")
+
 # participant_condition_means <- data_WM_long_V2 %>%
 #   group_by(participant, trial_type) %>%
 #   summarize(mean_accuracy = mean(accuracy, na.rm = TRUE))
@@ -495,25 +513,41 @@ LTM_data_summary <- filtered_data %>%
   group_by(trial_type_new, participant) %>%
   get_summary_stats(accuracy, type = "mean_sd")
 
-print("paired t test between Test 2 and Never tested in LTM")
 paired_t_test_results <- LTM_data_summary %>%
   pairwise_t_test(
     mean ~ trial_type_new, paired = TRUE,
     p.adjust.method = "holm"
   )
 
-print(paired_t_test_results)
+effect_sizes <- LTM_data_summary %>%
+  cohens_d(mean ~ trial_type_new, paired = TRUE)
+
+
+paired_t_test_results <- paired_t_test_results %>%
+  left_join(effect_sizes, by = c(".y.", "group1", "group2"))
+
+print("Paired t-test between Test 2 and Never tested in LTM")
+paired_t_test_results
 
 LTM_data_summary <-data_subset %>%
   group_by(trial_type_new, participant) %>%
   get_summary_stats(accuracy, type = "mean_sd")
 
-print("And here are all the possible tests for a better overview (not included in the manusscript")
-LTM_data_summary %>%
+print("And here are all the possible tests with effect sizes for a better overview (not included in the manusscript")
+
+paired_t_test_results <- LTM_data_summary %>%
   pairwise_t_test(
     mean ~ trial_type_new, paired = TRUE,
     p.adjust.method = "holm")
 
+effect_sizes <- LTM_data_summary %>%
+  cohens_d(mean ~ trial_type_new, paired = TRUE)
+
+
+paired_t_test_results <- paired_t_test_results %>%
+  left_join(effect_sizes, by = c(".y.", "group1", "group2"))
+
+paired_t_test_results
 
 ```
 
@@ -549,6 +583,14 @@ pairwise_comparisons_LTM_load <- data_summary_LTM_load %>%
     mean ~ sample_trials, paired = TRUE,
     p.adjust.method = "holm")
 
+effect_sizes_LTM_load <- data_summary_LTM_load %>%
+  cohens_d(mean ~ sample_trials, paired = TRUE)
+
+# Step 3: Join the effect sizes into the t-test results
+pairwise_comparisons_LTM_load <- pairwise_comparisons_LTM_load %>%
+  left_join(effect_sizes_LTM_load, by = c(".y.", "group1", "group2"))
+
+# Step 4: View results
 pairwise_comparisons_LTM_load
 
 
@@ -598,9 +640,21 @@ get_anova_table(res.aov_image_presWM)
 
 print("This t-test addresses the primacy effect in the LTM conditions, showing generally higher performance for WM Sample 1")
 LTM_t_test2 <- summary_image_pres %>%
+  group_by(trial_type_new) %>%
   pairwise_t_test(
     mean ~ image_presentation, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm"
+  )
+
+# Add effect sizes per trial type
+effect_sizes_LTM <- summary_image_pres %>%
+  group_by(trial_type_new) %>%
+  cohens_d(mean ~ image_presentation, paired = TRUE)
+
+# Join results
+LTM_t_test2 <- LTM_t_test2 %>%
+  left_join(effect_sizes_LTM, by = c("trial_type_new", ".y.", "group1", "group2"))
+
 
 LTM_t_test2
 
@@ -678,8 +732,26 @@ print(paste("Mean for Exp. 2:", mean_value_V2))
 print(paste("Standard Error for Exp. 1:", se_value))
 print(paste("Standard Error for Exp. 1:", se_value_V2))
 
-t.test(mean_performance_LTM$accuracy_ltm, mean_performance_LTM_V2$accuracy_ltm,paired = FALSE)
+#t.test(mean_performance_LTM$accuracy_ltm, mean_performance_LTM_V2$accuracy_ltm,paired = FALSE)
+t_test_result <- t.test(mean_performance_LTM$accuracy_ltm,
+                        mean_performance_LTM_V2$accuracy_ltm,
+                        paired = FALSE)
 
+# Calculate pooled standard deviation
+sd1 <- sd(mean_performance_LTM$accuracy_ltm)
+sd2 <- sd(mean_performance_LTM_V2$accuracy_ltm)
+n1 <- length(mean_performance_LTM$accuracy_ltm)
+n2 <- length(mean_performance_LTM_V2$accuracy_ltm)
+
+pooled_sd <- sqrt(((n1 - 1)*sd1^2 + (n2 - 1)*sd2^2) / (n1 + n2 - 2))
+
+# Compute Cohen's d
+mean_diff <- mean(mean_performance_LTM$accuracy_ltm) - mean(mean_performance_LTM_V2$accuracy_ltm)
+cohens_d <- mean_diff / pooled_sd
+
+# Print results
+print(t_test_result)
+cat("Cohen's d:", round(cohens_d, 3), "\n")
 
 data_LTM_filtered <- data_LTM %>%
   filter(trial_type != "Never tested")
@@ -692,6 +764,7 @@ mean_performance_LTM <- summarySE(data_LTM_filtered, measurevar = "accuracy_ltm"
 mean_performance_LTM_V2 <- summarySE(data_LTM_V2_filtered, measurevar = "accuracy_ltm", groupvars = c("participant"), na.rm = TRUE)
 
 print("The mean accuracy in the LTM is lower than in the WM task")
+
 # Calculate the mean
 mean_value <- mean(mean_performance_LTM$accuracy_ltm)
 mean_value_V2 <- mean(mean_performance_LTM_V2$accuracy_ltm)
@@ -703,6 +776,28 @@ print(mean_value)
 print(mean_value_V2)
 
 t.test(mean_performance_LTM$accuracy_ltm, mean_performance_LTM_V2$accuracy_ltm,paired = FALSE)
+
+# Means
+mean1 <- mean(mean_performance_LTM$accuracy_ltm)
+mean2 <- mean(mean_performance_LTM_V2$accuracy_ltm)
+
+# Standard deviations
+sd1 <- sd(mean_performance_LTM$accuracy_ltm)
+sd2 <- sd(mean_performance_LTM_V2$accuracy_ltm)
+
+# Sample sizes
+n1 <- length(mean_performance_LTM$accuracy_ltm)
+n2 <- length(mean_performance_LTM_V2$accuracy_ltm)
+
+# Pooled standard deviation
+pooled_sd <- sqrt(((n1 - 1)*sd1^2 + (n2 - 1)*sd2^2) / (n1 + n2 - 2))
+
+# Cohen's d
+cohens_d <- (mean1 - mean2) / pooled_sd
+
+# Report
+cat("Cohen's d:", round(cohens_d, 3), "\n")
+
 
 ```
 

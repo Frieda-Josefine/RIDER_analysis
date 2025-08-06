@@ -52,14 +52,14 @@ library(hrbrthemes)#nice plotting
 library(viridis)#nice plotting
 library(gridExtra)
 library(plotly)# intersczive plotting
- library(ggpubr)
+library(ggpubr)
 `%notin%` <- Negate(`%in%`)
 ```
 
 ```{r loading data, include=FALSE}
 # RIDER1 data
-data_WM <- read.csv("/path/to/data_location/WM_data.csv",na.strings=c("","NA"))
-data_LTM <- read.csv("/path/to/data_location/LTM_data.csv",na.strings=c("","NA"))
+data_WM <- read.csv("/Users/born/Documents/Upside_down_task/client/public/raw_data/WM_data.csv",na.strings=c("","NA"))
+data_LTM <- read.csv("/Users/born/Documents/Upside_down_task/client/public/raw_data/LTM_data.csv",na.strings=c("","NA"))
 ```
 
 
@@ -82,7 +82,7 @@ correlation_image2 <- cor(data_WM_filtered$startOri2, data_WM_filtered$start_dis
 # Printing the result
 print(paste("Correlation Sample 2, the correlation between WM sample and WM probe is:", correlation_image2))
 ```
-Please note: This markdown document entails the data processing steps 1) Trial selection, 
+Please note: This markdown document entails the data processing steppwds 1) Trial selection, 
 2) accuracy calculation (Error °), 
 3) exp. condition definition, 
 4) consistency data checks, 
@@ -139,8 +139,15 @@ angdiff <- function(alpha_deg, beta_deg) {
 data_WM$accuracy_t1 <- abs(apply(data_WM[,c("this_ori_t1", "fixedOri_t1")], 1, function(x) angdiff(x[1], x[2])$delta_deg))
 data_WM$accuracy_t2 <- abs(apply(data_WM[,c("this_ori_t2", "fixedOri_t2")], 1, function(x) angdiff(x[1], x[2])$delta_deg))
 
+
+
+data_WM$accuracy_t1_s <-(apply(data_WM[,c("this_ori_t1", "fixedOri_t1")], 1, function(x) angdiff(x[1], x[2])$delta_deg))
+data_WM$accuracy_t2_s <-(apply(data_WM[,c("this_ori_t2", "fixedOri_t2")], 1, function(x) angdiff(x[1], x[2])$delta_deg))
+
 # pivot longer for easier data handling
 data_WM_long<- data_WM %>% pivot_longer(cols=c('accuracy_t1','accuracy_t2'),names_to='attention_condition',values_to='accuracy') 
+
+data_WM_long_s<- data_WM %>% pivot_longer(cols=c('accuracy_t1_s','accuracy_t2_s'),names_to='attention_condition',values_to='accuracy_s') 
 
 # simple retrieval trial types
 data_WM_long <- data_WM_long  %>% 
@@ -148,6 +155,17 @@ data_WM_long <- data_WM_long  %>%
     baselinePresent  == 1 ~ "Baseline",
     trial_type !="baseline" & attention_condition == "accuracy_t1"  ~ "Test 1",
     trial_type !="baseline" & attention_condition == "accuracy_t2" ~ "Test 2"))
+
+
+
+
+data_WM_long_s <- data_WM_long_s  %>% 
+  mutate(trial_type_new = case_when(
+    baselinePresent  == 1 ~ "Baseline",
+    trial_type !="baseline" & attention_condition == "accuracy_t1_s"  ~ "Test 1",
+    trial_type !="baseline" & attention_condition == "accuracy_t2_s" ~ "Test 2"))
+
+
 
 
 # image effect
@@ -196,77 +214,12 @@ data_WM_long <- data_WM_long[filter_vec,]
 
 ```{r calculating accurcy RIDER1 LTM , include=FALSE}
 ### Processing of LTM data (equal to the steps taken for WM results)
-# remove participant with sig. low WM performance also from LTM df
+
 data_LTM<-data_LTM[!(data_LTM$participant=='15'),]
-
-# # Step 1: Create a summary in data_WM_long to indicate if there was a Test 2 for each participant and image
-# wm_summary <- data_WM_long %>%
-#   select(participant, test1, test2, image1, image2, diff_Test1) %>%
-#   pivot_longer(cols = c(image1, image2), names_to = "image_type", values_to = "wm_image") %>%
-#   group_by(participant, wm_image) %>%
-#   summarize(test2_exists = any(test2 != "_"), .groups = 'drop')
-# 
-# # Step 2: Assign trial_type in data_LTM
-# data_LTM <- data_LTM %>%
-#   group_by(participant) %>%
-#   mutate(trial_type = case_when(
-#     ltm_image %in% unlist(test1) & ltm_trial == 'baseline' ~ "Baseline",
-#     ltm_image %in% unlist(test1) ~ "Test 1",
-#     ltm_image %in% unlist(test2) ~ "Test 2",
-#     !ltm_image %in% unlist(test1) & !ltm_image %in% unlist(test2) ~ "Never tested",
-#     TRUE ~ NA_character_
-#   )) %>%
-#   ungroup()
-# 
-# # Step 3: Join data_LTM with wm_summary to get test2_exists information
-# data_LTM <- data_LTM %>%
-#   left_join(wm_summary, by = c("participant", "ltm_image" = "wm_image"))
-# 
-# # Step 4: Assign test1_spec based on trial_type and test2_exists
-# data_LTM <- data_LTM %>%
-#   mutate(test1_spec = case_when(
-#     trial_type == 'Test 1' & !test2_exists ~ "No",
-#     trial_type == 'Test 1' & test2_exists ~ "Yes",
-#     TRUE ~ NA_character_
-#   ))
-# 
-# data_LTM_filtered <- data_LTM %>%
-#   filter(trial_type == "Test 1")
-# 
-# # Step 2: Summarize the values per participant, grouped by test2_exists
-# summary_df <- data_LTM_filtered %>%
-#   group_by(participant, test2_exists) %>%
-#   summarize(
-#     mean_accuracy = mean(accuracy_ltm, na.rm = TRUE),
-#     .groups = 'drop'
-#   )
-# 
-# summary_df <- summary_df %>%
-#   pivot_wider(
-#     names_from = test2_exists,
-#     values_from = mean_accuracy,
-#     names_prefix = "test2_exists_"
-#   )
-# 
-# # Step 1: Ensure the summary dataframe contains paired values for each participant
-# summary_df <- summary_df %>%
-#   filter(!is.na(test2_exists_FALSE) & !is.na(test2_exists_TRUE))
-# 
-# # Step 2: Calculate the accuracy differences
-# summary_df <- summary_df %>%
-#   mutate(accuracy_difference = test2_exists_FALSE - test2_exists_TRUE)
-# 
-# # Display the summary dataframe with the accuracy differences
-# print(summary_df)
-# 
-# # Step 3: Perform the paired t-test on the accuracy differences
-# paired_t_test <- t.test(summary_df$accuracy_difference, mu = 0)
-# 
-
-
 
 # preparing df for identification of trial types
 data_LTM <- rbind.fill(data_LTM,data_WM[c("test1", "test2","participant","image1","image2")])
+
 
 
 data_LTM <- data_LTM %>%
@@ -275,21 +228,6 @@ data_LTM <- data_LTM %>%
                                  ltm_image %in%  test1  ~   "Test 1",
                                  ltm_image %in%  test2  ~   "Test 2",
                                  ltm_image %notin% test1 & ltm_image %notin% test2 ~ "Never tested"))
-
-# data_LTM <- data_LTM %>%
-#   group_by(participant)%>%
-#   mutate(test1_spec = case_when(trial_type == 'Test 1' & test2 == "_"  ~ "No",
-#                                 trial_type == 'Test 1' & test2 != "_" ~   "Yes",
-#                                  ))
-# 
-# 
-# 
-# # Assuming data_LTM and data_WM_long are your dataframes
-# 
-# # Step 1: Join data_LTM with data_WM_long to get diff_Test1 information
-# data_LTM <- data_LTM %>%
-#   left_join(data_WM_long %>% select(participant, test1, test2, diff_Test1), by = "participant")
-
 
 
 # Sample position effects
@@ -304,21 +242,71 @@ data_LTM <- data_LTM %>%
                                  ltm_image %notin% test1 & ltm_image %notin% test2 & ltm_image %in% image2 ~ "Img2-NT"))
 
 
+##for checking for the influence of the other WM sample, we need to include information about the non-target as well
+
+
 # calculate ltm accuracy
 data_LTM <- data_LTM %>% mutate(ori_ltm = this_ori_ltm %% 360)#Modulus (Remainder from division)
 
 data_LTM$accuracy_ltm <- abs(apply(data_LTM[,c("ori_ltm", "fixedOri_ltm")], 1, function(x) angdiff(x[1], x[2])$delta_deg))
 
+data_LTM$accuracy_ltm_s <-(apply(data_LTM[,c("ori_ltm", "fixedOri_ltm")], 1, function(x) angdiff(x[1], x[2])$delta_deg))
+
 #remove extra WM rows again
 data_LTM <- data_LTM[rowSums(is.na(data_LTM)) == 0|rowSums(is.na(data_LTM)) == 1| rowSums(is.na(data_LTM)) == 2|rowSums(is.na(data_LTM)) == 3|rowSums(is.na(data_LTM)) == 4,]
+
+
+wm_long <- data_WM %>%
+  pivot_longer(
+    cols = c(image1, image2),
+    names_to = "image_position",
+    values_to = "image"
+  )
+
+data_LTM_joined <- data_LTM %>%
+  left_join(wm_long, by = c("participant", "ltm_image" = "image"))
+
 
 ```
 
 
 ```{r pruning LTM RIDER1, include=FALSE}
-# importing dfs containing trials to be pruned
-removed_trials <- read.csv("/Users/born/Documents/Upside_down_task/client/public/pruning_removed_trials/removed_trials.csv",na.strings=c("","NA"))
-removed_trials2 <- read.csv("/Users/born/Documents/Upside_down_task/client/public/pruning_removed_trials/removed_trials2.csv",na.strings=c("","NA"))
+
+removed_trials <-data.frame(matrix(ncol=30,nrow=0, dimnames=list(NULL, colnames(data_WM_long))))
+for (i in data_WM_long$participant){
+  #select trials per participant
+  t1_trials <- data_WM_long[which(data_WM_long$trial_type_new=='Test 1' & data_WM_long$participant == i), ]
+  t2_trials <- data_WM_long[which(data_WM_long$trial_type_new=='Test 2' & data_WM_long$participant == i), ]
+  baseline_trials <- data_WM_long[which(data_WM_long$trial_type_new=='Baseline' & data_WM_long$participant == i), ]
+  #order mean values for each trial type to know what to prune
+  vector <- c(mean(t1_trials$accuracy,na.rm = TRUE),mean(t2_trials$accuracy,na.rm = TRUE),mean(baseline_trials$accuracy,na.rm = TRUE))
+  #find the reference for pruning (will be baseline for most participants)
+  # Here I am chaninging min(vector) to mean(vector) to implement the same pruning as being performed in Exp. 3
+  lowest <- mean(vector)+2 # +2 to avoid "over pruning"
+  #order the single values to prepare to remove them to equalize the means
+  t1_trials <- t1_trials[order(t1_trials$accuracy,decreasing = TRUE),]
+  t2_trials <- t2_trials[order(t2_trials$accuracy,decreasing = TRUE),]
+  baseline_trials <- baseline_trials[order(baseline_trials$accuracy,decreasing = TRUE),]
+  while (mean(baseline_trials$accuracy,na.rm = TRUE) > lowest){
+    removed <- baseline_trials[1,]
+    baseline_trials <- baseline_trials[-1,]
+    removed_trials[nrow(removed_trials) + 1, ] <- removed
+  }
+  while (mean(t1_trials$accuracy,na.rm = TRUE) > lowest){
+    removed <- t1_trials[1,]
+    t1_trials <- t1_trials[-1,]
+    removed_trials[nrow(removed_trials) + 1, ] <- removed
+  }
+  while (mean(t2_trials$accuracy,na.rm = TRUE) > lowest){
+    removed <- t2_trials[1,]
+    t2_trials <- t2_trials[-1,]
+    removed_trials[nrow(removed_trials) + 1, ] <- removed
+  }
+  print(i)
+}
+
+removed_trials <- removed_trials[!duplicated(removed_trials[,]),]
+
 
 #write.csv(removed_trials,"/Users/born/Documents/Upside_down_task/client/public/removed_trials.csv", row.names = FALSE)
 objects <- removed_trials %>%
@@ -390,12 +378,16 @@ for(df in 1:length(test2_trials2)) {
 
 test_2_data2 <- rbindlist(test2_trials2)
 
-test_2_data2 <- test_2_data2 %>% 
+test_2_data2_a <- test_2_data2 %>% 
   rowwise() %>%
   mutate(min_angle_ltm = abs(ori_ltm - alternative_memory2))%>%
   mutate(max_angle_ltm = 360-abs(ori_ltm - alternative_memory2))
 
-test_2_data2 <- transform(test_2_data2, accuracy_ltm = pmin(min_angle_ltm, max_angle_ltm))#angular difference
+test_2_data2_s <- test_2_data2 %>%
+  rowwise() %>%
+  mutate(accuracy_ltm = ((ori_ltm - alternative_memory2 + 180) %% 360) - 180)
+
+test_2_data2_a <- transform(test_2_data2_a, accuracy_ltm = pmin(min_angle_ltm, max_angle_ltm))#angular difference
 
 # extract data for WM bias in baseline over participants
 
@@ -411,12 +403,16 @@ for(df in 1:length(baseline_trials2)) {
 
 baseline_trials2 <- rbindlist(baseline_trials2)
 
-baseline_trials2 <- baseline_trials2 %>% 
+baseline_trials2_a <- baseline_trials2 %>% 
   rowwise() %>%
   mutate(min_angle_ltm = abs(ori_ltm - alternative_memory2))%>%
   mutate(max_angle_ltm = 360-abs(ori_ltm - alternative_memory2))
 
-baseline_trials2 <- transform(baseline_trials2, accuracy_ltm = pmin(min_angle_ltm, max_angle_ltm))#angular difference
+baseline_trials2_s <- baseline_trials2 %>%
+  rowwise() %>%
+  mutate(accuracy_ltm = ((ori_ltm - alternative_memory2 + 180) %% 360) - 180)
+
+baseline_trials2_a <- transform(baseline_trials2_a, accuracy_ltm = pmin(min_angle_ltm, max_angle_ltm))#angular difference
 
 # extract data for WM bias in Test 1 over participants
 
@@ -433,27 +429,276 @@ for(df in 1:length(test1_trials2)) {
 test_1_data2 <- rbindlist(test1_trials2)
 
 
-test_1_data2 <- test_1_data2 %>% 
+test_1_data2_a <- test_1_data2 %>% 
   rowwise() %>%
   mutate(min_angle_ltm = abs(ori_ltm - alternative_memory2))%>%
   mutate(max_angle_ltm = 360-abs(ori_ltm - alternative_memory2))
 
-test_1_data2 <- transform(test_1_data2, accuracy_ltm = pmin(min_angle_ltm, max_angle_ltm))#angular difference
+test_1_data2_a <- transform(test_1_data2_a, accuracy_ltm = pmin(min_angle_ltm, max_angle_ltm))#angular difference
+
+test_1_data2_s <- test_1_data2 %>%
+  rowwise() %>%
+  mutate(
+    accuracy_ltm = ((ori_ltm - alternative_memory2 + 180) %% 360) - 180
+  )
 
 # add trials type 
-test_1_data2$trial_type <- "Test 1"
-test_2_data2$trial_type <- "Test 2"
-baseline_trials2$trial_type <- "Baseline"
+test_1_data2_a$trial_type <- "Test 1"
+test_2_data2_a$trial_type <- "Test 2"
+baseline_trials2_a$trial_type <- "Baseline"
+
+test_1_data2_s$trial_type <- "Test 1"
+test_2_data2_s$trial_type <- "Test 2"
+baseline_trials2_s$trial_type <- "Baseline"
 
 
-alternative_ltm2 <- rbind(test_1_data2,test_2_data2,baseline_trials2)
+alternative_ltm2_a <- rbind(test_1_data2_a,test_2_data2_a,baseline_trials2_a)
+alternative_ltm2_s <- rbind(test_1_data2_s,test_2_data2_s,baseline_trials2_s)
 
-summary_stats_participant_WB <- summarySE(alternative_ltm2, measurevar = "accuracy_ltm", groupvars = c("trial_type","participant"),na.rm = T)
-summary_study_level_WB <- summarySE(summary_stats_participant_WB, measurevar = "accuracy_ltm", groupvars = c("trial_type"),na.rm = T)
+summary_stats_participant_WB_a <- summarySE(alternative_ltm2_a, measurevar = "accuracy_ltm", groupvars = c("trial_type","participant"),na.rm = T)
+summary_study_level_WB_a <- summarySE(summary_stats_participant_WB_a, measurevar = "accuracy_ltm", groupvars = c("trial_type"),na.rm = T)
+
+summary_stats_participant_WB_s <- summarySE(alternative_ltm2_s, measurevar = "accuracy_ltm", groupvars = c("trial_type","participant"),na.rm = T)
+summary_study_level_WB_s <- summarySE(summary_stats_participant_WB_s, measurevar = "accuracy_ltm", groupvars = c("trial_type"),na.rm = T)
 
 
 ```
 
+```{r intra trial bias data, include=FALSE}
+# In response to a reviewer comment, I am checking for bias coming from another stimulus in a trial as well
+
+data_WM <- data_WM %>%
+  mutate(
+    target_orientation_t1 = case_when(
+      test1 == image1 ~ as.numeric(startOri1),
+      test1 == image2 ~ as.numeric(startOri2),
+      TRUE ~ NA_real_
+    ),
+    other_orientation_t1 = case_when(
+      test1 == image1 ~ as.numeric(startOri2),
+      test1 == image2 ~ as.numeric(startOri1),
+      TRUE ~ NA_real_
+    )
+  )
+
+data_WM <- data_WM %>%
+  mutate(
+    target_orientation_t2 = case_when(
+      test2 == image1 ~ as.numeric(startOri1),
+      test2 == image2 ~ as.numeric(startOri2),
+      TRUE ~ NA_real_
+    ),
+    other_orientation_t2 = case_when(
+      test2 == image1 ~ as.numeric(startOri2),
+      test2 == image2 ~ as.numeric(startOri1),
+      TRUE ~ NA_real_
+    )
+  )
+
+
+data_WM <- data_WM %>%
+  mutate(
+    wm_error_t1 = angdiff(this_ori_t1, target_orientation_t1)$delta_deg,
+    wm_error_t2 = angdiff(this_ori_t2, target_orientation_t2)$delta_deg
+  )
+
+data_WM <- data_WM %>%
+  mutate(
+    rel_angle_t1 = angdiff(other_orientation_t1, target_orientation_t1)$delta_deg,
+    rel_angle_t2 = angdiff(other_orientation_t2, target_orientation_t2)$delta_deg
+  )
+
+# First, exclude baseline trials
+df_filtered <- data_WM %>%
+  filter(trial_type != "baseline")
+
+# we  calculate the absolute angular difference to the non-target orientation
+
+data_WM <- data_WM %>%
+  mutate(
+    error_to_other_t1 = abs(angdiff(this_ori_t1, other_orientation_t1)$delta_deg),
+    error_to_other_t2 = abs(angdiff(this_ori_t2, other_orientation_t2)$delta_deg)
+  )
+
+
+# Filter for non-baseline trials
+df_filtered <- data_WM %>%
+  filter(trial_type != "baseline")
+
+participant_means <- df_filtered %>%
+  group_by(participant) %>%
+  summarise(
+    mean_error_to_other_t1 = mean(error_to_other_t1, na.rm = TRUE),
+    mean_error_to_other_t2 = mean(error_to_other_t2, na.rm = TRUE)
+  )
+
+# Compute mean and SE across participants
+summary_stats <- participant_means %>%
+  summarise(
+    mean_t1 = mean(mean_error_to_other_t1, na.rm = TRUE),
+    se_t1   = sd(mean_error_to_other_t1, na.rm = TRUE) / sqrt(n()),
+    mean_t2 = mean(mean_error_to_other_t2, na.rm = TRUE),
+    se_t2   = sd(mean_error_to_other_t2, na.rm = TRUE) / sqrt(n())
+  )
+
+```
+
+In the following, we are adding (signed) error distribution histograms across WM and LTM (sample/report).
+
+```{r response error, echo=FALSE}
+## In response to a reviewer comment, we inlcude a visualization of response error distributions here
+
+# Prepare data
+df <- data_WM_long_s %>%
+  rename(`Trial Type` = trial_type_new) %>%
+  mutate(`Trial Type` = recode(`Trial Type`, "Baseline" = "One-Sample"))
+
+# Plot
+breaks_seq <- seq(-180, 180, by = 2)
+wm_hist <- ggplot(df, aes(x = accuracy_s, fill = `Trial Type`)) +
+  geom_histogram(aes(y = ..density..), binwidth = 9, boundary = 0,
+               position = "identity", alpha = 0.6, color = "black")+
+  geom_density(alpha = 0.2) +
+  geom_vline(data = df %>% group_by(`Trial Type`) %>% summarise(m = mean(accuracy_s, na.rm = TRUE)),
+             aes(xintercept = m, color = `Trial Type`), linetype = "dashed", size = 1.2, show.legend = FALSE) +
+  facet_wrap(~ `Trial Type`, nrow = 1, scales = "free_y")+
+  scale_y_continuous(limits = c(0, 0.05))+
+  scale_x_continuous(
+    limits = c(-180, 180),
+    breaks = seq(-180, 180, by = 90),
+    expand = c(0, 0)
+  )+
+  scale_fill_manual(values = c("One-Sample" = "#a6dba0", "Test 1" = "#4c9085", "Test 2" = "#9e2e84")) +
+  scale_color_manual(values = c("One-Sample" = "#a6dba0", "Test 1" = "#4c9085", "Test 2" = "#9e2e84")) +
+  labs(
+    title = "",
+    x = "\nError (°)",
+    y = "Density\n"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.position = "none",
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+# Show plot
+print("In response to reviwer comments, in the following, we are showing (signed) error distributions in WM and LTM")
+print("Histogram for WM errors")
+print(wm_hist)
+
+
+tiff("WM_hist2.tiff", units = "in", width = 14, height = 6, res = 300)
+print(wm_hist)
+dev.off()
+
+df_ltm <- data_LTM %>%
+  rename(`Trial Type` = trial_type) %>%
+  mutate(`Trial Type` = recode(`Trial Type`,
+                               "Baseline" = "One-Sample",
+                               "Never tested" = "Not probed")) %>%
+  filter(`Trial Type` != "Not probed") %>%
+  mutate(`Trial Type` = factor(`Trial Type`, levels = c("One-Sample", "Test 1", "Test 2")))
+
+ltm_hist <- ggplot(df_ltm, aes(x = accuracy_ltm_s, fill = `Trial Type`)) +
+  geom_histogram(aes(y = ..density..), binwidth = 11, boundary = 0,
+               position = "identity", alpha = 0.6, color = "black")+
+  geom_density(alpha = 0.2) +
+  geom_vline(data = df_ltm %>% group_by(`Trial Type`) %>% summarise(m = mean(accuracy_ltm_s, na.rm = TRUE)),
+             aes(xintercept = m, color = `Trial Type`), linetype = "dashed", size = 1.2, show.legend = FALSE) +
+  facet_wrap(~ `Trial Type`, nrow = 1, scales = "free_y") +
+  scale_y_continuous(limits = c(0, 0.02)) +
+  scale_x_continuous(
+    limits = c(-180, 180),
+    breaks = seq(-180, 180, by = 90),
+    expand = c(0, 0)
+  )+
+  scale_fill_manual(values = c("One-Sample" = "#a6dba0", "Test 1" = "#4c9085", "Test 2" = "#9e2e84")) +
+  scale_color_manual(values = c("One-Sample" = "#a6dba0", "Test 1" = "#4c9085", "Test 2" = "#9e2e84")) +
+  labs(
+    title = "",
+    x = "\nError (°)",
+    y = "Density\n"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.position = "none",
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+# Show plot
+print("Histogram for LTM errors")
+ltm_hist
+
+
+
+# Optionally save it
+#tiff("LTM_hist.tiff", units = "in", width = 14, height = 6, res = 300)
+#print(ltm_hist)
+#dev.off()
+
+
+
+## Also calculating this for Rev 2 for the bias to reported orientation
+
+df_ltm_alt <- alternative_ltm2_s %>%
+  rename(`Trial Type` = trial_type) %>%
+  mutate(`Trial Type` = recode(`Trial Type`,
+                               "Baseline" = "One-Sample",
+                               "Never tested" = "Not probed")) %>%
+  filter(`Trial Type` != "Not probed") %>%
+  mutate(`Trial Type` = factor(`Trial Type`, levels = c("One-Sample", "Test 1", "Test 2")))
+
+ltm_hist_alt <- ggplot(df_ltm_alt, aes(x = accuracy_ltm, fill = `Trial Type`)) +
+  geom_histogram(aes(y = ..density..), binwidth = 11, boundary = 0,
+               position = "identity", alpha = 0.6, color = "black")+
+  geom_density(alpha = 0.2) +
+  geom_vline(data = df_ltm_alt %>% group_by(`Trial Type`) %>% summarise(m = mean(accuracy_ltm, na.rm = TRUE)),
+             aes(xintercept = m, color = `Trial Type`), linetype = "dashed", size = 1.2, show.legend = FALSE) +
+  facet_wrap(~ `Trial Type`, nrow = 1, scales = "free_y") +
+  scale_y_continuous(limits = c(0, 0.02)) +
+  scale_x_continuous(
+    limits = c(-180, 180),
+    breaks = seq(-180, 180, by = 90),
+    expand = c(0, 0)
+  )+
+  scale_fill_manual(values = c("One-Sample" = "#a6dba0", "Test 1" = "#4c9085", "Test 2" = "#9e2e84")) +
+  scale_color_manual(values = c("One-Sample" = "#a6dba0", "Test 1" = "#4c9085", "Test 2" = "#9e2e84")) +
+  labs(
+    title = "",
+    x = "\nDeviation (°)",
+    y = "Density\n"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
+    strip.text = element_text(size = 12, face = "bold"),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12),
+    legend.position = "none",
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+# Save
+#tiff("LTM_signed_error_hist.tiff", units = "in", width = 14.5, height = 6, res = 300)
+print(ltm_hist_alt)
+print("Histogram for LTM to WM report errors")
+#dev.off()
+
+
+
+
+
+
+```
 
 # Statistics
 
@@ -486,7 +731,14 @@ pairwise_comparisons_WM <- data_summary_WM %>%
     mean ~ exp_condition, paired = TRUE,
     p.adjust.method = "holm")
 
+effect_sizes <- data_summary_WM %>%
+  cohens_d(mean ~ exp_condition, paired = TRUE, var.equal = FALSE)
+
+pairwise_comparisons_WM <- pairwise_comparisons_WM %>%
+  left_join(effect_sizes, by = c(".y.", "group1", "group2"))
+
 print("This table shows the 3 main pairwise comparisons across the WM exp. conditions")
+print("Please also note that, as requested during revision, we have added the effect sizes (Cohen’s d) to our t-test results tables")
 
 pairwise_comparisons_WM
 
@@ -508,6 +760,12 @@ pairwise_comparisons_WM_av <- data_summary_WM_av %>%
   pairwise_t_test(
     mean ~ sample_trials, paired = TRUE,
     p.adjust.method = "holm")
+
+effect_sizes_av <- data_summary_WM_av %>%
+  cohens_d(mean ~ sample_trials, paired = TRUE, var.equal = FALSE)
+
+pairwise_comparisons_WM_av <- pairwise_comparisons_WM_av %>%
+  left_join(effect_sizes_av, by = c(".y.", "group1", "group2"))
 
 print("This test shows difference between one sample (1) and two-sample (2) trials (averaged Test1/Test2")
 
@@ -543,15 +801,13 @@ average_performance
 
 print("This 2 x 2 ANOVA focuses on the priority and sample position effects in the WM task (1/2 sample, 1/2 test)")
 
-# Step 1: Filter rows based on stimulus_presentation
 filtered_data <- data_subset_WM_new %>%
   filter(stimulus_presentation %in% c("Img2-Test1", "Img1-Test1", "Img2-Test2", "Img1-Test2"))
 
-# Step 2: Further filter rows based on exp_condition and task
+
 filtered_data <- filtered_data %>%
   filter(exp_condition %in% c("Test 1", "Test 2"))
 
-# Step 3: Rename variable levels
 filtered_data <- filtered_data %>%
   mutate(stimulus_presentation = sub("-Test1$", "", stimulus_presentation),
          stimulus_presentation = sub("-Test2$", "", stimulus_presentation))
@@ -584,14 +840,58 @@ post_hoc_sample_position <- summary_image_pres %>%
     mean ~ stimulus_presentation, paired = TRUE,
     p.adjust.method = "holm")
 
-print("The following table shows the sample 1 /2 effects in WM Test 1 vs. Test 2 ")
+effect_sizes <- summary_image_pres %>%
+  group_by(exp_condition) %>%
+  cohens_d(mean ~ stimulus_presentation, paired = TRUE, var.equal = FALSE)
+
+post_hoc_sample_position <- post_hoc_sample_position %>%
+  left_join(effect_sizes, by = c("exp_condition", ".y.", "group1", "group2"))
+
+print("The following table shows the sample 1 /2 effects in WM Test 1 vs. Test 2; including effect size ")
 post_hoc_sample_position
 
+
+## Below we do the comparisons for the plot
+
+# Sample 1 (Img1) — compare Test1 vs Test2
+ttest_sample1 <- summary_image_pres %>%
+  filter(stimulus_presentation == "Img1") %>%
+  pairwise_t_test(
+    mean ~ exp_condition, paired = TRUE,
+    p.adjust.method = "none"
+  ) %>%
+  mutate(sample = "Sample 1")
+
+# Sample 2 (Img2) — compare Test1 vs Test2
+ttest_sample2 <- summary_image_pres %>%
+  filter(stimulus_presentation == "Img2") %>%
+  pairwise_t_test(
+    mean ~ exp_condition, paired = TRUE,
+    p.adjust.method = "none"
+  ) %>%
+  mutate(sample = "Sample 2")
+
+effect_sample1 <- summary_image_pres %>%
+  filter(stimulus_presentation == "Img1") %>%
+  cohens_d(mean ~ exp_condition, paired = TRUE) %>%
+  mutate(sample = "Sample 1")
+
+effect_sample2 <- summary_image_pres %>%
+  filter(stimulus_presentation == "Img2") %>%
+  cohens_d(mean ~ exp_condition, paired = TRUE) %>%
+  mutate(sample = "Sample 2")
+
+print("The following comparisons, additionally, indicate sig. diff. when comparing Sample 1/2 in Test1/2")
+
+ttest_sample1
+effect_sample1
+ttest_sample2
+effect_sample2
 
 summary_stats_participant_image_pres <- summarySE(data_WM_long, measurevar = "accuracy", groupvars = c("image_presentation","participant"),na.rm = T)
 summary_study_level_image_pres <- summarySE(summary_stats_participant_image_pres, measurevar = "accuracy", groupvars = c("image_presentation"),na.rm = T)
 
-print("Average WM performance across sample positions")
+print("Overview of Average WM performance across sample positions")
 
 summary_study_level_image_pres
 ```
@@ -619,6 +919,20 @@ print(paste("Standard Error:", se_value))
 t_test_result <- t.test(mean_performance_LTM$accuracy_ltm, mean_performnce_WM$accuracy,paired = TRUE)
 
 t_test_result
+
+# Calculate the difference between paired samples
+differences <- mean_performance_LTM$accuracy_ltm - mean_performnce_WM$accuracy
+
+# Compute the mean and standard deviation of the differences
+mean_diff <- mean(differences)
+sd_diff <- sd(differences)
+
+# Compute Cohen's d for paired samples
+cohen_d <- mean_diff / sd_diff
+
+# Print result
+cat("Cohen's d (paired):", round(cohen_d, 3), "\n")
+
 
 print("Avergae mean performance across LTM conditions")
 summary_study_level_LTM
@@ -652,6 +966,16 @@ pairwise_comparisons_LTM<- data_summary_LTM %>%
     mean ~ exp_condition, paired = TRUE,
     p.adjust.method = "holm")
 
+effect_sizes_LTM <- data_summary_LTM %>%
+  cohens_d(mean ~ exp_condition, paired = TRUE, var.equal = FALSE)
+
+# Join the effect sizes to the t-test results
+pairwise_comparisons_LTM <- pairwise_comparisons_LTM %>%
+  left_join(effect_sizes_LTM, by = c(".y.", "group1", "group2"))
+
+
+
+
 print("This table shows the 3 main pairwise comparisons across the LTM exp. conditions")
 pairwise_comparisons_LTM
 
@@ -675,6 +999,13 @@ pairwise_comparisons_LTM_av <- data_summary_LTM_av %>%
     mean ~ sample_trials, paired = TRUE,
     p.adjust.method = "holm")
 
+effect_sizes_LTM_av <- data_summary_LTM_av %>%
+  cohens_d(mean ~ sample_trials, paired = TRUE, var.equal = FALSE)
+
+pairwise_comparisons_LTM_av <- pairwise_comparisons_LTM_av %>%
+  left_join(effect_sizes_LTM_av, by = c(".y.", "group1", "group2"))
+
+
 print("Here shown average difference between one-sample and two-sample in LTM")
 pairwise_comparisons_LTM_av
 
@@ -689,13 +1020,13 @@ summary_stats
 
 print("This 2 x 2 ANOVA focuses on the priority and sample position effects in the LTM task (1/2 sample, 1/2 test)")
 
-# Step 1: Filter rows and exclude Baseline condition
+
 data_subset_new<-data_subset_new[!(data_subset_new$exp_condition=="Baseline"),]
 
 filtered_data_ltm <- data_subset_new %>%
   filter(stimulus_presentation %in% c("Img2-Test1", "Img1-Test1", "Img2-Test2", "Img1-Test2"))
 
-# Step 3: Rename variable levels
+
 filtered_data_ltm <- filtered_data_ltm %>%
   mutate(stimulus_presentation = sub("-Test1$", "", stimulus_presentation),
          stimulus_presentation = sub("-Test2$", "", stimulus_presentation))
@@ -723,9 +1054,16 @@ sample_pos_effects_ltm <- summary_image_pres_ltm %>%
   pairwise_t_test(
     mean ~ stimulus_presentation, paired = TRUE,
     p.adjust.method = "holm")
+  
+effect_sizes_ltm <- summary_image_pres_ltm %>%
+  group_by(exp_condition) %>%
+  cohens_d(mean ~ stimulus_presentation, paired = TRUE, var.equal = FALSE)
 
+# Join the effect sizes with the t-test results
+sample_pos_effects_ltm <- sample_pos_effects_ltm %>%
+  left_join(effect_sizes_ltm, by = c("exp_condition", ".y.", "group1", "group2"))
+  
 sample_pos_effects_ltm
-
 
 
 ```
@@ -742,6 +1080,12 @@ pairwise_comparisons_LTM_NP<- data_summary_LTM_NP %>%
     mean ~ exp_condition, paired = TRUE,
     p.adjust.method = "holm")
 
+effect_sizes_LTM_NP <- data_summary_LTM_NP %>%
+  cohens_d(mean ~ exp_condition, paired = TRUE, var.equal = FALSE)
+
+pairwise_comparisons_LTM_NP <- pairwise_comparisons_LTM_NP %>%
+  left_join(effect_sizes_LTM_NP, by = c(".y.", "group1", "group2"))
+
 print("This table shows the 3 main pairwise comparisons across the LTM exp. conditions vs. not probed")
 pairwise_comparisons_LTM_NP
 
@@ -756,6 +1100,13 @@ sample_pos_effects_NP <- filtered_data_NP %>%
   pairwise_t_test(
     accuracy ~ stimulus_presentation, paired = TRUE,
     p.adjust.method = "holm")
+
+effect_sizes_NP <- filtered_data_NP %>%
+  cohens_d(accuracy ~ stimulus_presentation, paired = TRUE, var.equal = FALSE)
+
+
+sample_pos_effects_NP <- sample_pos_effects_NP %>%
+  left_join(effect_sizes_NP, by = c(".y.", "group1", "group2"))
 
 sample_pos_effects_NP
 
@@ -779,7 +1130,7 @@ full_data_new <- rbind(data_subset_WM_new, data_subset_new)
 filtered_data2 <- full_data_new %>%
   filter(stimulus_presentation %in% c("Img2-Test1", "Img1-Test1", "Img2-Test2", "Img1-Test2"))
 
-# Step 2: Rename variable levels
+
 filtered_data2 <- filtered_data2 %>%
   mutate(stimulus_presentation = sub("-Test1$", "", stimulus_presentation),
          stimulus_presentation = sub("-Test2$", "", stimulus_presentation))
@@ -830,27 +1181,33 @@ summary_ltm_p <-data_subset_p %>%
   get_summary_stats(accuracy, type = "mean_sd")
 
 # remove participants that through pruning lost complete dataset for single conditions
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="50"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="81"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="170"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="88"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="96"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="102"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="111"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="170"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="118"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="119"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="143"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="178"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="39"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="2"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="66"),]
-summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="15"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="50"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="81"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="170"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="88"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="96"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="102"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="111"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="170"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="118"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="119"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="143"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="178"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="39"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="2"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="66"),]
+#summary_ltm_p<-summary_ltm_p[!(summary_ltm_p$participant=="15"),]
 
 trial_effects_p <- summary_ltm_p %>%
   pairwise_t_test(
     mean ~ exp_condition, paired = TRUE,
     p.adjust.method = "holm")
+
+effect_sizes_p <- summary_ltm_p %>%
+  cohens_d(mean ~ exp_condition, paired = TRUE, var.equal = FALSE)
+
+trial_effects_p <- trial_effects_p %>%
+  left_join(effect_sizes_p, by = c(".y.", "group1", "group2"))
 
 print("Pairwise comparisons of pruned data exp. conditions")
 trial_effects_p
@@ -866,11 +1223,12 @@ summary_stats_LTM_P
 #### Pairwise comparisons of WM sample vs report and 2 x 3 repeated measures ANOVA
 
 ```{r WM Reports pairwise comparisons, echo=FALSE}
-WM_bias <-alternative_ltm2 %>%
+WM_bias <-alternative_ltm2_a %>%
   group_by(trial_type, participant) %>%
   get_summary_stats(accuracy_ltm, type = "mean_sd")
 
 print("Here shown are the pairwise comparisons for LTM accuracy of WM Report (instead of sample)")
+
 WM_bias %>%
   pairwise_t_test(
     mean ~ trial_type, paired = TRUE,
@@ -878,7 +1236,7 @@ WM_bias %>%
 
 colnames(WM_bias)[2] = "exp_condition"
 
-WM_bias2 <-alternative_ltm2 %>%
+WM_bias2 <-alternative_ltm2_a %>%
   group_by(participant) %>%
   get_summary_stats(accuracy_ltm, type = "mean_sd")
 
@@ -894,8 +1252,18 @@ data_summary_LTM <-data_subset_filtered %>%
 # Comparison of LTM accuracy of WM Sample vs. Report
 
 t_test_result <- t.test(data_summary_LTM$mean, WM_bias2$mean,paired = TRUE)
+
 print("Here shown is the pairwise comparison of LTM accuracy Sample vs. Report")
-t_test_result
+mean_diff <- mean(data_summary_LTM$mean - WM_bias2$mean, na.rm = TRUE)
+sd_diff <- sd(data_summary_LTM$mean - WM_bias2$mean, na.rm = TRUE)
+cohen_d <- mean_diff / sd_diff
+
+
+cat(sprintf("t(%d) = %.2f, p = %.3f, Cohen's d = %.3f\n",
+            t_test_result$parameter,
+            t_test_result$statistic,
+            t_test_result$p.value,
+            cohen_d))
 
 data_summary_LTM2 <-data_subset_filtered %>%
   group_by(participant,exp_condition ) %>%
@@ -912,6 +1280,14 @@ sample_vs_report_comparison <- sample_vs_report %>%
   pairwise_t_test(
     mean ~ type, paired = TRUE,
     p.adjust.method = "holm")
+
+effect_sizes <- sample_vs_report %>%
+  group_by(exp_condition) %>%
+  cohens_d(mean ~ type, paired = TRUE, var.equal = FALSE)
+
+
+sample_vs_report_comparison <- sample_vs_report_comparison %>%
+  left_join(effect_sizes, by = c("exp_condition", ".y.", "group1", "group2"))
 
 sample_vs_report_comparison
 
@@ -932,13 +1308,13 @@ get_anova_table(res.aov_bias)
 ```{r WM Reports, echo=FALSE}
 summary_study_level_LTM$WM_point <- "WM_sample"
 summary_stats_participant_LTM$WM_point <- "WM_sample"
-summary_study_level_WB$WM_point <- "WM_report"
-summary_stats_participant_WB$WM_point <- "WM_report"
+summary_study_level_WB_a$WM_point <- "WM_report"
+summary_stats_participant_WB_a$WM_point <- "WM_report"
 
 summary_stats_participant_LTM$participant <- factor(summary_stats_participant_LTM$participant)
-summary_stats_participant_WB$participant <- factor(summary_stats_participant_WB$participant)
+summary_stats_participant_WB_a$participant <- factor(summary_stats_participant_WB_a$participant)
 
-combined_participant_data <- bind_rows(summary_stats_participant_LTM,summary_stats_participant_WB)
+combined_participant_data <- bind_rows(summary_stats_participant_LTM,summary_stats_participant_WB_a)
 
 combined_participant_data$trial_type[combined_participant_data$trial_type == 'Baseline'] <- "One-Sample"
 combined_participant_data$trial_type[combined_participant_data$trial_type == 'One-item prioritized'] <- "One-Sample"
@@ -987,9 +1363,9 @@ print(t_test_result)
 summary_stats_participant_LTM$participant <- as.integer(as.character(summary_stats_participant_LTM$participant))
 
 summary_stats_participant_LTM$participant <- factor(summary_stats_participant_LTM$participant)
-summary_stats_participant_WB$participant <- factor(summary_stats_participant_WB$participant)
+summary_stats_participant_WB_a$participant <- factor(summary_stats_participant_WB_a$participant)
 
-combined_sample_report <- bind_rows(summary_stats_participant_LTM, summary_stats_participant_WB)
+combined_sample_report <- bind_rows(summary_stats_participant_LTM, summary_stats_participant_WB_a)
 
 combined_sample_report <- combined_sample_report %>%
   filter(trial_type != "Never tested")
@@ -1136,11 +1512,35 @@ summarySE(summary_stats_participant_random_probe, measurevar = "accuracy_ltm", g
 t_test_slopes_LTM <- t.test(summary_stats_participant_random_probe$accuracy_ltm, mu = 90)
 
 
+cohen_d_one_sample <- function(x, mu = 90) {
+  d <- (mean(x, na.rm = TRUE) - mu) / sd(x, na.rm = TRUE)
+  return(d)
+}
+
+# Updated pipeline with effect size
 results <- summary_stats_participant_random_probe %>%
   group_by(trial_type) %>%
   nest() %>%
-  mutate(t_test_result = map(data, ~t.test(.x$accuracy_ltm, mu = 90, alternative = "less"))) %>%
-  select(trial_type, t_test_result)
+  mutate(
+    # Perform the two-sided t-test
+    t_test_result = map(data, ~t.test(.x$accuracy_ltm, mu = 90, alternative = "two.sided")),
+    
+    # Extract the p-values using broom::tidy
+    p_value = map_dbl(t_test_result, ~tidy(.x)$p.value),
+    
+    # Compute Cohen's d
+    cohen_d = map_dbl(data, ~cohen_d_one_sample(.x$accuracy_ltm, mu = 90))
+  ) %>%
+  ungroup() %>%
+  
+  # Apply Holm-Bonferroni correction
+  mutate(
+    p_value_adjusted = p.adjust(p_value, method = "holm")
+  ) %>%
+  select(trial_type, t_test_result, p_value, p_value_adjusted, cohen_d)
+
+# View the results
+results
 
 results[[2]][[1]][["p.value"]]
 results[[2]][[2]][["p.value"]]
@@ -1150,4 +1550,179 @@ print("The LTM accuracy does not seem to be sig. biased by random WM probe orien
 t_test_slopes_LTM
 ```
 
+In response to a reviewer comment, we are adding the statistical test that concern repulsion bias below
 
+```{r intra trial bias results, echo = FALSE}
+print(summary_stats)
+
+print("These are the results of the repulsion bias we see in Test 1 and Test 2 in WM")
+# T-Test für Test 1
+t_test_mean_t1 <- t.test(participant_means$mean_error_to_other_t1, mu = 90)
+print("Test 1")
+print(t_test_mean_t1)
+
+m_t1 <- mean(participant_means$mean_error_to_other_t1, na.rm = TRUE)
+s_t1 <- sd(participant_means$mean_error_to_other_t1, na.rm = TRUE)
+cohen_d_t1_manual <- (m_t1 - 90) / s_t1
+print(cohen_d_t1_manual)
+
+# T-Test für Test 2
+t_test_mean_t2 <- t.test(participant_means$mean_error_to_other_t2, mu = 90)
+print("Test 2")
+print(t_test_mean_t2)
+
+m_t2 <- mean(participant_means$mean_error_to_other_t2, na.rm = TRUE)
+s_t2 <- sd(participant_means$mean_error_to_other_t2, na.rm = TRUE)
+cohen_d_t2_manual <- (m_t2 - 90) / s_t2
+
+print(cohen_d_t2_manual)
+
+t_test_t1_vs_t2 <- t.test(participant_means$mean_error_to_other_t1,
+                          participant_means$mean_error_to_other_t2,
+                          paired = TRUE)
+
+print("Comparison of Test 1 and Test 2 (WM)")
+print(t_test_t1_vs_t2)
+
+# Compute the difference between paired samples
+differences <- participant_means$mean_error_to_other_t1 - participant_means$mean_error_to_other_t2
+
+# Calculate paired Cohen's d manually
+mean_diff <- mean(differences, na.rm = TRUE)
+sd_diff <- sd(differences, na.rm = TRUE)
+cohens_d_paired_manual <- mean_diff / sd_diff
+
+print(cohens_d_paired_manual)
+
+
+# Doing the same analysis for the LTM data
+wm_long_images <- data_WM_long %>%
+  # First image entry
+  transmute(
+    participant,
+    wm_image = image1,
+    start_ori = startOri1,
+    other_ori = startOri2
+  ) %>%
+  bind_rows(
+    # Second image entry
+    data_WM_long %>%
+      transmute(
+        participant,
+        wm_image = image2,
+        start_ori = startOri2,
+        other_ori = startOri1
+      )
+  ) %>%
+  distinct()
+
+data_LTM_joined <- data_LTM %>%
+  left_join(
+    wm_long_images %>%
+      select(participant, wm_image, start_ori, other_ori),
+    by = c("participant", "ltm_image" = "wm_image")
+  )
+
+
+data_LTM_joined_filtered <- data_LTM_joined %>%
+  filter(trial_type != "Baseline")
+
+data_LTM_joined_filtered <- data_LTM_joined_filtered %>%
+  mutate(
+    other_ori = na_if(other_ori, "_"),          # Replace "_" with NA
+    other_ori = as.numeric(other_ori),          # Convert to numeric
+    ori_ltm = as.numeric(ori_ltm)               # Ensure response is also numeric
+  )
+
+# Compute absolute angular error to the other item
+data_LTM_joined_filtered$error_to_other_ltm_abs <- apply(
+  data_LTM_joined_filtered[, c("ori_ltm", "other_ori")],
+  1,
+  function(x) abs(angdiff(as.numeric(x[1]), as.numeric(x[2]))$delta_deg)
+)
+
+# One-sample t-test against 90°
+t.test(data_LTM_joined_filtered$error_to_other_ltm_abs, mu = 90)
+
+
+participant_means_ltm <- data_LTM_joined_filtered %>%
+  group_by(participant) %>%
+  summarise(mean_error_to_other_ltm_abs = mean(error_to_other_ltm_abs, na.rm = TRUE))
+
+t_test_ltm_participant_level <- t.test(participant_means_ltm$mean_error_to_other_ltm_abs, mu = 90)
+
+
+
+
+
+
+# --- Compute participant-wise means per test type ---
+participant_means_ltm_by_test <- data_LTM_joined_filtered %>%
+  filter(trial_type %in% c("Test 1", "Test 2")) %>%
+  group_by(participant, trial_type) %>%
+  summarise(mean_error = mean(error_to_other_ltm_abs, na.rm = TRUE), .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = trial_type, values_from = mean_error, names_prefix = "mean_error_to_other_")
+
+# --- T-Tests ---
+# One-sample t-tests against 90°
+
+# Clean up column names to remove spaces
+colnames(participant_means_ltm_by_test) <- make.names(colnames(participant_means_ltm_by_test))
+
+# Check column names again
+t_test_ltm_t1 <- t.test(participant_means_ltm_by_test$mean_error_to_other_Test.1, mu = 90)
+m <- mean(participant_means_ltm_by_test$mean_error_to_other_Test.1, na.rm = TRUE)
+s <- sd(participant_means_ltm_by_test$mean_error_to_other_Test.1, na.rm = TRUE)
+cohen_d_manual_t1 <- (m - 90) / s
+
+# SE for Test 1
+m_t1 <- mean(participant_means_ltm_by_test$mean_error_to_other_Test.1, na.rm = TRUE)
+s_t1 <- sd(participant_means_ltm_by_test$mean_error_to_other_Test.1, na.rm = TRUE)
+se_t1 <- s_t1 / sqrt(sum(!is.na(participant_means_ltm_by_test$mean_error_to_other_Test.1)))
+
+
+t_test_ltm_t2 <- t.test(participant_means_ltm_by_test$mean_error_to_other_Test.2, mu = 90)
+
+m <- mean(participant_means_ltm_by_test$mean_error_to_other_Test.2, na.rm = TRUE)
+s <- sd(participant_means_ltm_by_test$mean_error_to_other_Test.2, na.rm = TRUE)
+cohen_d_manual_t2 <- (m - 90) / s
+
+m_t2 <- mean(participant_means_ltm_by_test$mean_error_to_other_Test.2, na.rm = TRUE)
+s_t2 <- sd(participant_means_ltm_by_test$mean_error_to_other_Test.2, na.rm = TRUE)
+se_t2 <- s_t2 / sqrt(sum(!is.na(participant_means_ltm_by_test$mean_error_to_other_Test.2)))
+
+
+
+t_test_ltm_t1_vs_t2 <- t.test(
+  participant_means_ltm_by_test$mean_error_to_other_Test.1,
+  participant_means_ltm_by_test$mean_error_to_other_Test.2,
+  paired = TRUE
+)
+
+diff_ltm <- participant_means_ltm_by_test$mean_error_to_other_Test.1 -
+            participant_means_ltm_by_test$mean_error_to_other_Test.2
+
+# Compute Cohen's d for paired samples
+mean_diff_ltm <- mean(diff_ltm, na.rm = TRUE)
+sd_diff_ltm <- sd(diff_ltm, na.rm = TRUE)
+cohens_d_ltm_manual <- mean_diff_ltm / sd_diff_ltm
+
+
+
+# --- Print results ---
+print("These are the results of the repulsion bias we see in Test 1 and Test 2 in LTM")
+print("Test 1")
+print(t_test_ltm_t1)
+cohen_d_manual_t1
+se_t1
+print("Test 2")
+print(t_test_ltm_t2)
+cohen_d_manual_t2
+se_t2
+
+print("Comparison of Test 1 and Test 2")
+print(t_test_ltm_t1_vs_t2)
+print(cohens_d_ltm_manual)
+
+
+```

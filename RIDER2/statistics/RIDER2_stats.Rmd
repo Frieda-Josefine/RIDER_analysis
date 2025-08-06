@@ -58,8 +58,8 @@ library(plotly)# intersczive plotting
 
 ```{r loading data, include=FALSE}
 # RIDER2 data
-data_WM_V3 <- read.csv("path/to/data/location/data/WM_data_RIDER_2.csv",na.strings=c("","NA"))
-data_LTM_V3 <- read.csv("path/to/data/location/data/LTM_data_RIDER_2.csv",na.strings=c("","NA"))
+data_WM_V3 <- read.csv("/Users/born/Documents/RIDER3/client/public/data/WM_data_RIDER_3.csv",na.strings=c("","NA"))
+data_LTM_V3 <- read.csv("/Users/born/Documents/RIDER3/client/public/data/LTM_data_RIDER_3.csv",na.strings=c("","NA"))
 ```
 
 
@@ -315,10 +315,21 @@ full_data_summary$trial_type_new <- factor(full_data_summary$trial_type_new, lev
 summary_stats_participant_trial_type_V3 <- summarySE(data_WM_V3, measurevar = "accuracy_t1", groupvars = c("trial_type_new","participant"),na.rm = T)
 summary_study_level_trial_type_V3 <- summarySE(summary_stats_participant_trial_type_V3, measurevar = "accuracy_t1", groupvars = c("trial_type_new"),na.rm = T)
 
-full_data_summary %>%
+pairwise_comparisons <-full_data_summary %>%
   pairwise_t_test(
     mean ~ trial_type_new, paired = TRUE,
     p.adjust.method = "holm")
+
+effect_sizes <- full_data_summary %>%
+  cohens_d(mean ~ trial_type_new, paired = TRUE, var.equal = FALSE)
+
+# Step 3: Join the effect sizes with the t-test results
+pairwise_comparisons <- pairwise_comparisons %>%
+  left_join(effect_sizes, by = c(".y.", "group1", "group2"))
+
+# View the final table
+pairwise_comparisons
+
 ```
 
 
@@ -370,15 +381,29 @@ summary_study_level_LTM_V3
 # Separate the data into two vectors
 # summary_stats_participant_LTM2 <- summarySE(summary_stats_participant_LTM, measurevar = "accuracy_ltm", groupvars = c("participant"),na.rm = T)
 # summary_stats_participant_LTM_V32 <- summarySE(summary_stats_participant_LTM_V3, measurevar = "accuracy_ltm", groupvars = c("participant"),na.rm = T)
-# 
+# # 
 # accuracy_exp1 <- summary_stats_participant_LTM2 %>% pull(accuracy_ltm)
 # accuracy_exp2 <- summary_stats_participant_LTM_V32 %>% pull(accuracy_ltm)
-# 
-# # Perform paired t-test
+# # 
+# # # Perform paired t-test
 # t_test_result <- t.test(accuracy_exp1, accuracy_exp2, paired = FALSE)
+# # 
+# combined_data <- bind_rows(
+#   data.frame(participant = summary_stats_participant_LTM2$participant,
+#              accuracy_ltm = accuracy_exp1,
+#              experiment = "Exp1"),
+#   data.frame(participant = summary_stats_participant_LTM_V32$participant,
+#              accuracy_ltm = accuracy_exp2,
+#              experiment = "Exp2")
+# )
 # 
-# # Print the result
-# print(t_test_result)
+# # Compute Cohen's d for independent samples
+# effect_size <- combined_data %>%
+#   cohens_d(accuracy_ltm ~ experiment, var.equal = FALSE)
+# 
+# # Print both the t-test and effect size
+# t_test_result
+# effect_size
 
 
 print("General mean performance of LTM performance in Exp. 2")
@@ -412,6 +437,11 @@ t_test_result <- t.test(accuracy_ltm_yes, accuracy_ltm_no, paired = TRUE)
 # Print the result
 print(t_test_result)
 
+differences <- accuracy_ltm_yes - accuracy_ltm_no
+cohens_d_paired <- mean(differences) / sd(differences)
+
+cat("Cohen's d (paired):", round(cohens_d_paired, 3), "\n")
+
 ```
 #### Pairwise comparisons for Cueing and Testing conditions
 
@@ -422,10 +452,24 @@ full_data_summary_ltm_V3 <-data_LTM_V3 %>%
   get_summary_stats(accuracy_ltm, type = "mean_sd")
 
 
-full_data_summary_ltm_V3 %>%
+pairwise_comparisons_ltm_V3 <-full_data_summary_ltm_V3 %>%
   pairwise_t_test(
     mean ~ trial_type, paired = TRUE,
     p.adjust.method = "holm")
+
+effect_sizes_ltm_V3 <- full_data_summary_ltm_V3 %>%
+  cohens_d(
+    mean ~ trial_type, 
+    paired = TRUE,
+    var.equal = FALSE
+  )
+
+# Step 3: Join the effect sizes to the t-test results
+pairwise_comparisons_ltm_V3 <- pairwise_comparisons_ltm_V3 %>%
+  left_join(effect_sizes_ltm_V3, by = c(".y.", "group1", "group2"))
+
+# View the final result with effect sizes
+pairwise_comparisons_ltm_V3
 
 
 ```
@@ -645,9 +689,48 @@ res.aov <- anova_test(data = participant_means, dv = participant_mean, wid = par
 
 get_anova_table(res.aov)
 
-
 print("Here just the mean values over the ANOVA conditions")
 overall_mean
+
+### In response to a reviwer comment, we are including a seperate ANOVA on the log transformed data to see how rubust the interaction effect between cueing and testing is
+
+
+# Transform error to accuracy on a 0–1 scale
+data_LTM_pruned_V3 <- data_LTM_pruned_V3 %>%
+  mutate(
+    accuracy_ltm_acc = (180 - accuracy_ltm) / 180  # Convert error to accuracy: 0 = worst, 1 = best
+  )
+
+# Adjust to avoid logit issues at 0 or 1
+epsilon <- 0.001
+data_LTM_pruned_V3 <- data_LTM_pruned_V3 %>%
+  mutate(
+    accuracy_ltm_acc_adj = pmin(pmax(accuracy_ltm_acc, epsilon), 1 - epsilon)
+  )
+
+# Logit transformation
+data_LTM_pruned_V3 <- data_LTM_pruned_V3 %>%
+  mutate(
+    accuracy_ltm_logit = log(accuracy_ltm_acc_adj / (1 - accuracy_ltm_acc_adj))
+  )
+
+# Compute participant-level means by condition
+participant_means_logit <- data_LTM_pruned_V3 %>%
+  group_by(attention, testing, participant) %>%
+  summarise(participant_mean = mean(accuracy_ltm_logit), .groups = "drop")
+
+# Run repeated-measures ANOVA
+res.aov_logit <- anova_test(
+  data = participant_means_logit,
+  dv = participant_mean,
+  wid = participant,
+  within = c(attention, testing)
+)
+
+# Output results
+print("The ANOVA on the logit-transformed accuracy data yields an even stronger interaction effect.")
+get_anova_table(res.aov_logit)
+
 ```
 ### (2 x 2 x 2 ANOVA (WM Sample Position x Testing x Cueing) (again, in pruned data)
 <br>
