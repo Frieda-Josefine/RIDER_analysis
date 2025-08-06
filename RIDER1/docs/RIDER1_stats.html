@@ -1815,13 +1815,13 @@ in the background when the script runs.</p>
 <pre><code>## [1] &quot;Pairwise comparisons of pruned data exp. conditions&quot;</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":[".y."],"name":[1],"type":["chr"],"align":["left"]},{"label":["group1"],"name":[2],"type":["chr"],"align":["left"]},{"label":["group2"],"name":[3],"type":["chr"],"align":["left"]},{"label":["n1"],"name":[4],"type":["int"],"align":["right"]},{"label":["n2"],"name":[5],"type":["int"],"align":["right"]},{"label":["statistic"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["df"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["p"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["p.adj"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["p.adj.signif"],"name":[10],"type":["chr"],"align":["left"]}],"data":[{"1":"mean","2":"Baseline","3":"Test 1","4":"173","5":"173","6":"-0.9173827","7":"172","8":"3.60e-01","9":"3.60e-01","10":"ns","_rn_":"1"},{"1":"mean","2":"Baseline","3":"Test 2","4":"173","5":"173","6":"3.8238101","7":"172","8":"1.84e-04","9":"3.68e-04","10":"***","_rn_":"2"},{"1":"mean","2":"Test 1","3":"Test 2","4":"173","5":"173","6":"6.4300440","7":"172","8":"1.21e-09","9":"3.63e-09","10":"****","_rn_":"3"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":[".y."],"name":[1],"type":["chr"],"align":["left"]},{"label":["group1"],"name":[2],"type":["chr"],"align":["left"]},{"label":["group2"],"name":[3],"type":["chr"],"align":["left"]},{"label":["n1"],"name":[4],"type":["int"],"align":["right"]},{"label":["n2"],"name":[5],"type":["int"],"align":["right"]},{"label":["statistic"],"name":[6],"type":["dbl"],"align":["right"]},{"label":["df"],"name":[7],"type":["dbl"],"align":["right"]},{"label":["p"],"name":[8],"type":["dbl"],"align":["right"]},{"label":["p.adj"],"name":[9],"type":["dbl"],"align":["right"]},{"label":["p.adj.signif"],"name":[10],"type":["chr"],"align":["left"]}],"data":[{"1":"mean","2":"Baseline","3":"Test 1","4":"187","5":"187","6":"-2.479314","7":"186","8":"1.40e-02","9":"1.40e-02","10":"*","_rn_":"1"},{"1":"mean","2":"Baseline","3":"Test 2","4":"187","5":"187","6":"3.509633","7":"186","8":"5.63e-04","9":"1.00e-03","10":"**","_rn_":"2"},{"1":"mean","2":"Test 1","3":"Test 2","4":"187","5":"187","6":"6.333566","7":"186","8":"1.75e-09","9":"5.25e-09","10":"****","_rn_":"3"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <pre><code>## [1] &quot;Avergae performances in pruned data&quot;</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["exp_condition"],"name":[1],"type":["chr"],"align":["left"]},{"label":["N"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["mean"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["sd"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["se"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["ci"],"name":[6],"type":["dbl"],"align":["right"]}],"data":[{"1":"Baseline","2":"173","3":"51.28087","4":"22.05719","5":"1.676977","6":"3.310105"},{"1":"Test 1","2":"173","3":"52.62516","4":"17.29895","5":"1.315215","6":"2.596040"},{"1":"Test 2","2":"173","3":"45.13747","4":"20.26607","5":"1.540801","6":"3.041313"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["exp_condition"],"name":[1],"type":["chr"],"align":["left"]},{"label":["N"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["mean"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["sd"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["se"],"name":[5],"type":["dbl"],"align":["right"]},{"label":["ci"],"name":[6],"type":["dbl"],"align":["right"]}],"data":[{"1":"Baseline","2":"187","3":"50.68119","4":"18.72172","5":"1.369068","6":"2.700897"},{"1":"Test 1","2":"187","3":"53.41358","4":"16.88002","5":"1.234389","6":"2.435204"},{"1":"Test 2","2":"187","3":"46.31590","4":"19.96372","5":"1.459892","6":"2.880075"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <h3 style="text-align: center; color: pink;">
@@ -1894,9 +1894,14 @@ measures ANOVA</h4>
 <h5>Check that LTM reports were not additionally biased by the (random)
 initial orientations in which the WM probes first appeared on
 screen</h5>
-<pre><code>## [1] 0.3140135</code></pre>
-<pre><code>## [1] 0.9770805</code></pre>
-<pre><code>## [1] 0.6626911</code></pre>
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":["trial_type"],"name":[1],"type":["chr"],"align":["left"]},{"label":["t_test_result"],"name":[2],"type":["list"],"align":["right"]},{"label":["p_value"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["p_value_adjusted"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"Baseline","2":"<S3: htest>","3":"0.62802708","4":"1.0000000"},{"1":"Test 1","2":"<S3: htest>","3":"0.04583906","4":"0.1375172"},{"1":"Test 2","2":"<S3: htest>","3":"0.67461772","4":"1.0000000"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+<pre><code>## [1] 0.6280271</code></pre>
+<pre><code>## [1] 0.04583906</code></pre>
+<pre><code>## [1] 0.6746177</code></pre>
 <pre><code>## [1] &quot;The LTM accuracy does not seem to be sig. biased by random WM probe orientations&quot;</code></pre>
 <pre><code>## 
 ##  One Sample t-test
