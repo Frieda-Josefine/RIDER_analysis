@@ -53,6 +53,8 @@ library(viridis)#nice plotting
 library(gridExtra)
 library(plotly)# intersczive plotting
 library(ggpubr)
+library(afex)
+library(effectsize)
 `%notin%` <- Negate(`%in%`)
 ```
 
@@ -591,9 +593,9 @@ print("Histogram for WM errors")
 print(wm_hist)
 
 
-tiff("WM_hist2.tiff", units = "in", width = 14, height = 6, res = 300)
-print(wm_hist)
-dev.off()
+#tiff("WM_hist2.tiff", units = "in", width = 14, height = 6, res = 300)
+#print(wm_hist)
+#dev.off()
 
 df_ltm <- data_LTM %>%
   rename(`Trial Type` = trial_type) %>%
@@ -729,10 +731,15 @@ data_summary_WM <-data_subset_WM %>%
 pairwise_comparisons_WM <- data_summary_WM %>%
   pairwise_t_test(
     mean ~ exp_condition, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",
+    detailed = TRUE)
+
+data_summary_WM <- data_summary_WM %>% arrange(participant, exp_condition)
 
 effect_sizes <- data_summary_WM %>%
-  cohens_d(mean ~ exp_condition, paired = TRUE, var.equal = FALSE)
+  rstatix::cohens_d(mean ~ exp_condition,
+                    paired = TRUE,
+                    var.equal = FALSE)
 
 pairwise_comparisons_WM <- pairwise_comparisons_WM %>%
   left_join(effect_sizes, by = c(".y.", "group1", "group2"))
@@ -759,10 +766,15 @@ data_summary_WM_av <-data_subset_WM %>%
 pairwise_comparisons_WM_av <- data_summary_WM_av %>%
   pairwise_t_test(
     mean ~ sample_trials, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE )
+
 
 effect_sizes_av <- data_summary_WM_av %>%
-  cohens_d(mean ~ sample_trials, paired = TRUE, var.equal = FALSE)
+  rstatix::cohens_d(
+    mean ~ sample_trials,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
 pairwise_comparisons_WM_av <- pairwise_comparisons_WM_av %>%
   left_join(effect_sizes_av, by = c(".y.", "group1", "group2"))
@@ -790,7 +802,6 @@ average_performance <- summarySE(average_performance, measurevar = "accuracy", g
 print("Average WM performance acorss one-sample (1) vs. two-sample (2) trials ")
 
 average_performance
-
 
 ```
 
@@ -829,6 +840,18 @@ two_two_ANOVA_WM <- anova_test(data = summary_image_pres, dv = mean, wid = parti
 
 get_anova_table(two_two_ANOVA_WM)
 
+fit_wm <- aov_ez(
+  id = "participant",
+  dv = "mean",
+  within = c("stimulus_presentation", "exp_condition"),
+  data = summary_image_pres
+)
+options(effectsize_digits = 3)
+eta_wm <- effectsize::eta_squared(fit_wm, partial = TRUE, ci = 0.95)
+eta_wm[, c("Eta2_partial", "CI_low", "CI_high")] <-
+  lapply(eta_wm[, c("Eta2_partial", "CI_low", "CI_high")],
+         function(x) format(round(x, 3), nsmall = 3))
+eta_wm
 ```
 #### Post-hoc testing for 2 x 2 ANOVA
 
@@ -838,14 +861,28 @@ post_hoc_sample_position <- summary_image_pres %>%
   group_by(exp_condition)%>%
   pairwise_t_test(
     mean ~ stimulus_presentation, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
+
+post_hoc_sample_position
+
+summary_image_pres <- summary_image_pres %>%
+  mutate(
+    mean = as.numeric(mean),
+    stimulus_presentation = as.factor(stimulus_presentation),
+    exp_condition = as.factor(exp_condition)
+  )
 
 effect_sizes <- summary_image_pres %>%
   group_by(exp_condition) %>%
-  cohens_d(mean ~ stimulus_presentation, paired = TRUE, var.equal = FALSE)
+  rstatix::cohens_d(
+    mean ~ stimulus_presentation,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
 post_hoc_sample_position <- post_hoc_sample_position %>%
-  left_join(effect_sizes, by = c("exp_condition", ".y.", "group1", "group2"))
+  left_join(effect_sizes,
+            by = c("exp_condition", ".y.", "group1", "group2"))
 
 print("The following table shows the sample 1 /2 effects in WM Test 1 vs. Test 2; including effect size ")
 post_hoc_sample_position
@@ -873,12 +910,16 @@ ttest_sample2 <- summary_image_pres %>%
 
 effect_sample1 <- summary_image_pres %>%
   filter(stimulus_presentation == "Img1") %>%
-  cohens_d(mean ~ exp_condition, paired = TRUE) %>%
+  rstatix::cohens_d(mean ~ exp_condition,
+                    paired = TRUE,
+                    var.equal = FALSE) %>%
   mutate(sample = "Sample 1")
 
 effect_sample2 <- summary_image_pres %>%
   filter(stimulus_presentation == "Img2") %>%
-  cohens_d(mean ~ exp_condition, paired = TRUE) %>%
+  rstatix::cohens_d(mean ~ exp_condition,
+                    paired = TRUE,
+                    var.equal = FALSE) %>%
   mutate(sample = "Sample 2")
 
 print("The following comparisons, additionally, indicate sig. diff. when comparing Sample 1/2 in Test1/2")
@@ -961,18 +1002,21 @@ data_summary_LTM <-data_subset_filtered %>%
   group_by(exp_condition, participant) %>%
   get_summary_stats(accuracy, type = "mean_sd")
 
-pairwise_comparisons_LTM<- data_summary_LTM %>%
-  pairwise_t_test(
+pairwise_comparisons_LTM <- data_summary_LTM %>%
+  rstatix::pairwise_t_test(
     mean ~ exp_condition, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm", detailed = TRUE
+  )
 
 effect_sizes_LTM <- data_summary_LTM %>%
-  cohens_d(mean ~ exp_condition, paired = TRUE, var.equal = FALSE)
+  rstatix::cohens_d(
+    mean ~ exp_condition,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
-# Join the effect sizes to the t-test results
 pairwise_comparisons_LTM <- pairwise_comparisons_LTM %>%
   left_join(effect_sizes_LTM, by = c(".y.", "group1", "group2"))
-
 
 
 
@@ -997,10 +1041,14 @@ data_summary_LTM_av <-data_subset %>%
 pairwise_comparisons_LTM_av <- data_summary_LTM_av %>%
   pairwise_t_test(
     mean ~ sample_trials, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 effect_sizes_LTM_av <- data_summary_LTM_av %>%
-  cohens_d(mean ~ sample_trials, paired = TRUE, var.equal = FALSE)
+  rstatix::cohens_d(
+    mean ~ sample_trials,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
 pairwise_comparisons_LTM_av <- pairwise_comparisons_LTM_av %>%
   left_join(effect_sizes_LTM_av, by = c(".y.", "group1", "group2"))
@@ -1011,6 +1059,122 @@ pairwise_comparisons_LTM_av
 
 summary_stats <- summarySE(data_summary_LTM_av, measurevar = "mean", groupvars = c("sample_trials"),na.rm = T)
 summary_stats
+```
+
+```{r LTM Performance distances, echo=FALSE}
+
+print("Here shown are the t-tests for the different distances")
+ltm_means <- data_LTM %>%
+  group_by(participant, image_presentation) %>%
+  summarise(mean_ltm = mean(accuracy_ltm, na.rm = TRUE), .groups = "drop")
+
+baseline <- ltm_means %>%
+  filter(image_presentation == "Baseline") %>%
+  arrange(participant) %>%
+  pull(mean_ltm)
+
+sample2_test1 <- ltm_means %>%
+  filter(image_presentation == "Img2-Test1") %>%
+  arrange(participant) %>%
+  pull(mean_ltm)
+
+sample1_test2 <- ltm_means %>%
+  filter(image_presentation == "Img1-Test2") %>%
+  arrange(participant) %>%
+  pull(mean_ltm)
+
+compute_t_with_d_CI <- function(x, y) {
+  t_res <- t.test(x, y, paired = TRUE)
+  d_res <- effectsize::cohens_d(x, y, paired = TRUE, ci = 0.95)
+
+  list(
+    t      = as.numeric(t_res$statistic),
+    df     = as.numeric(t_res$parameter),
+    p      = t_res$p.value,
+    d      = as.numeric(d_res$Cohens_d),
+    d_low  = as.numeric(d_res$CI_low),
+    d_high = as.numeric(d_res$CI_high)
+  )
+}
+
+contrast_2T1 <- compute_t_with_d_CI(sample2_test1, baseline)
+
+
+contrast_1T2 <- compute_t_with_d_CI(sample1_test2, baseline)
+
+
+
+cat(sprintf(
+  "Sample 2 (Test 1) vs Baseline: t(%d) = %.2f, p = %.3f, d = %.3f [%.3f, %.3f]\n",
+  contrast_2T1$df, contrast_2T1$t, contrast_2T1$p, contrast_2T1$d,
+  contrast_2T1$d_low, contrast_2T1$d_high
+))
+
+cat(sprintf(
+  "Sample 1 (Test 2) vs Baseline: t(%d) = %.2f, p = %.3f, d = %.3f [%.3f, %.3f]\n",
+  contrast_1T2$df, contrast_1T2$t, contrast_1T2$p, contrast_1T2$d,
+  contrast_1T2$d_low, contrast_1T2$d_high
+))
+
+
+wm_groups <- data_WM %>%
+  mutate(
+    followed = ifelse(test2 != "_" & test2 != "" & !is.na(test2), TRUE, FALSE)
+  ) %>%
+  group_by(participant) %>%
+  summarise(
+    test1_followed_img     = list(test1[followed]),
+    test1_notfollowed_img  = list(test1[!followed]),
+    .groups = "drop"
+  )
+
+
+ltm_joined <- data_LTM %>%
+  select(participant, ltm_image, accuracy_ltm) %>%
+  left_join(wm_groups, by = "participant")
+
+
+extract_mean <- function(imagelist, df) {
+  if (length(imagelist) == 0) return(NA_real_)
+  vals <- df$accuracy_ltm[df$ltm_image %in% imagelist]
+  if (length(vals) == 0) return(NA_real_)
+  mean(vals)
+}
+
+
+recency_df <- ltm_joined %>%
+  group_by(participant) %>%
+  summarise(
+    mean_followed =
+      extract_mean(unique(test1_followed_img[[1]]), cur_data()),
+    mean_notfollowed =
+      extract_mean(unique(test1_notfollowed_img[[1]]), cur_data()),
+    .groups = "drop"
+  ) %>%
+  arrange(participant)
+
+x <- recency_df$mean_followed
+y <- recency_df$mean_notfollowed
+
+# Drop missing pairs
+idx <- complete.cases(x, y)
+x <- x[idx]
+y <- y[idx]
+
+
+res_t <- t.test(x, y, paired = TRUE)
+res_d <- cohens_d(x, y, paired = TRUE, ci = 0.95)
+
+
+cat(sprintf(
+  "Recency control (Test-1 followed vs. not followed): t(%d) = %.2f, p = %.3f, d = %.3f [%0.3f, %0.3f]\n",
+  as.numeric(res_t$parameter),
+  as.numeric(res_t$statistic),
+  res_t$p.value,
+  as.numeric(res_d$Cohens_d),
+  as.numeric(res_d$CI_low),
+  as.numeric(res_d$CI_high)
+))
 ```
 
 ### ANOVA Results LTM 
@@ -1047,21 +1211,35 @@ res.aov_image_pres_ltm <- anova_test(data = summary_image_pres_ltm, dv = mean, w
 
 get_anova_table(res.aov_image_pres_ltm)
 
+fit_ltm <- aov_ez(
+  id     = "participant",
+  dv     = "mean",
+  within = c("stimulus_presentation", "exp_condition"),
+  data   = summary_image_pres_ltm
+)
+
+eta_ltm <- effectsize::eta_squared(fit_ltm, partial = TRUE, ci = 0.95)
+eta_ltm
+
 print("These post-hoc comparisons show the difference of sample position in Test 1 and Test 2(*)")
 
 sample_pos_effects_ltm <- summary_image_pres_ltm %>%
   group_by(exp_condition)%>%
   pairwise_t_test(
     mean ~ stimulus_presentation, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
   
 effect_sizes_ltm <- summary_image_pres_ltm %>%
   group_by(exp_condition) %>%
-  cohens_d(mean ~ stimulus_presentation, paired = TRUE, var.equal = FALSE)
+  rstatix::cohens_d(
+    mean ~ stimulus_presentation,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
-# Join the effect sizes with the t-test results
 sample_pos_effects_ltm <- sample_pos_effects_ltm %>%
-  left_join(effect_sizes_ltm, by = c("exp_condition", ".y.", "group1", "group2"))
+  left_join(effect_sizes_ltm,
+            by = c("exp_condition", ".y.", "group1", "group2"))
   
 sample_pos_effects_ltm
 
@@ -1078,10 +1256,14 @@ data_summary_LTM_NP <-data_subset %>%
 pairwise_comparisons_LTM_NP<- data_summary_LTM_NP %>%
   pairwise_t_test(
     mean ~ exp_condition, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 effect_sizes_LTM_NP <- data_summary_LTM_NP %>%
-  cohens_d(mean ~ exp_condition, paired = TRUE, var.equal = FALSE)
+  rstatix::cohens_d(
+    mean ~ exp_condition,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
 pairwise_comparisons_LTM_NP <- pairwise_comparisons_LTM_NP %>%
   left_join(effect_sizes_LTM_NP, by = c(".y.", "group1", "group2"))
@@ -1099,11 +1281,14 @@ filtered_data_NP <- summarySE(filtered_data_NP, measurevar = "accuracy", groupva
 sample_pos_effects_NP <- filtered_data_NP %>%
   pairwise_t_test(
     accuracy ~ stimulus_presentation, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 effect_sizes_NP <- filtered_data_NP %>%
-  cohens_d(accuracy ~ stimulus_presentation, paired = TRUE, var.equal = FALSE)
-
+  rstatix::cohens_d(
+    accuracy ~ stimulus_presentation,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
 sample_pos_effects_NP <- sample_pos_effects_NP %>%
   left_join(effect_sizes_NP, by = c(".y.", "group1", "group2"))
@@ -1149,6 +1334,26 @@ summary_image_pres2$task <- factor(summary_image_pres2$task)
 res.aov_image_presWM2 <- anova_test(data = summary_image_pres2, dv = mean, wid = participant, within = c(stimulus_presentation,exp_condition,task))
 
 get_anova_table(res.aov_image_presWM2)
+
+
+fit_3way <- aov_ez(
+  id     = "participant",
+  dv     = "mean",
+  within = c("stimulus_presentation", "exp_condition", "task"),
+  data   = summary_image_pres2
+)
+
+eta_3way <- effectsize::eta_squared(
+  fit_3way,
+  partial = TRUE,
+  ci = 0.95
+)
+
+eta_3way[, c("Eta2_partial", "CI_low", "CI_high")] <-
+  lapply(eta_3way[, c("Eta2_partial", "CI_low", "CI_high")],
+         function(x) format(round(x, 3), nsmall = 3))
+
+eta_3way
 ```
 
 <h3 style="text-align: center; color: purple;">**Pruning for equivalent WM performance**</h3>
@@ -1201,10 +1406,14 @@ summary_ltm_p <-data_subset_p %>%
 trial_effects_p <- summary_ltm_p %>%
   pairwise_t_test(
     mean ~ exp_condition, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 effect_sizes_p <- summary_ltm_p %>%
-  cohens_d(mean ~ exp_condition, paired = TRUE, var.equal = FALSE)
+  rstatix::cohens_d(
+    mean ~ exp_condition,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
 trial_effects_p <- trial_effects_p %>%
   left_join(effect_sizes_p, by = c(".y.", "group1", "group2"))
@@ -1232,7 +1441,7 @@ print("Here shown are the pairwise comparisons for LTM accuracy of WM Report (in
 WM_bias %>%
   pairwise_t_test(
     mean ~ trial_type, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 colnames(WM_bias)[2] = "exp_condition"
 
@@ -1279,12 +1488,15 @@ sample_vs_report_comparison <- sample_vs_report %>%
   group_by(exp_condition)%>%
   pairwise_t_test(
     mean ~ type, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 effect_sizes <- sample_vs_report %>%
   group_by(exp_condition) %>%
-  cohens_d(mean ~ type, paired = TRUE, var.equal = FALSE)
-
+  rstatix::cohens_d(
+    mean ~ type,
+    paired = TRUE,
+    var.equal = FALSE
+  )
 
 sample_vs_report_comparison <- sample_vs_report_comparison %>%
   left_join(effect_sizes, by = c("exp_condition", ".y.", "group1", "group2"))
@@ -1302,6 +1514,20 @@ sample_vs_report$type <- factor(sample_vs_report$type)
 
 res.aov_bias <- anova_test(data = sample_vs_report, dv = mean, wid = participant, within = c(exp_condition,type))
 get_anova_table(res.aov_bias)
+
+fit_bias <- aov_ez(
+  id = "participant",
+  dv = "mean",
+  within = c("exp_condition", "type"),
+  data = sample_vs_report
+)
+
+eta_bias <- eta_squared(
+  fit_bias,
+  partial = TRUE,
+  ci = 0.95
+)
+print(eta_bias, digits = 3)
 ```
 
 
@@ -1418,6 +1644,21 @@ anova_results <- anova_test(
 # Print the results
 anova_results
 
+fit_bias_wide <- aov_ez(
+  id = "participant",
+  dv = "WM_bias",
+  within = "trial_type",
+  data = combined_sample_report_wide
+)
+
+
+eta_bias_wide <- eta_squared(
+  fit_bias_wide,
+  partial = TRUE,
+  ci = 0.95
+)
+
+eta_bias_wide
 ```
 
 
@@ -1522,29 +1763,25 @@ results <- summary_stats_participant_random_probe %>%
   group_by(trial_type) %>%
   nest() %>%
   mutate(
-    # Perform the two-sided t-test
     t_test_result = map(data, ~t.test(.x$accuracy_ltm, mu = 90, alternative = "two.sided")),
-    
-    # Extract the p-values using broom::tidy
     p_value = map_dbl(t_test_result, ~tidy(.x)$p.value),
-    
-    # Compute Cohen's d
+    ci_low = map_dbl(t_test_result, ~.x$conf.int[1]),
+    ci_high = map_dbl(t_test_result, ~.x$conf.int[2]),
     cohen_d = map_dbl(data, ~cohen_d_one_sample(.x$accuracy_ltm, mu = 90))
   ) %>%
   ungroup() %>%
-  
-  # Apply Holm-Bonferroni correction
   mutate(
     p_value_adjusted = p.adjust(p_value, method = "holm")
   ) %>%
-  select(trial_type, t_test_result, p_value, p_value_adjusted, cohen_d)
+  # including ci_low and ci_high in the final table
+  select(trial_type, p_value, p_value_adjusted, cohen_d, ci_low, ci_high)
 
 # View the results
 results
 
-results[[2]][[1]][["p.value"]]
-results[[2]][[2]][["p.value"]]
-results[[2]][[3]][["p.value"]]
+#results[[2]][[1]][["p.value"]]
+#results[[2]][[2]][["p.value"]]
+#results[[2]][[3]][["p.value"]]
 
 print("The LTM accuracy does not seem to be sig. biased by random WM probe orientations")
 t_test_slopes_LTM
@@ -1559,7 +1796,11 @@ print("These are the results of the repulsion bias we see in Test 1 and Test 2 i
 # T-Test für Test 1
 t_test_mean_t1 <- t.test(participant_means$mean_error_to_other_t1, mu = 90)
 print("Test 1")
-print(t_test_mean_t1)
+print
+
+# Extract CI
+ci_t1 <- t_test_mean_t1$conf.int
+cat(sprintf("95%% CI: [%.2f, %.2f]\n", ci_t1[1], ci_t1[2]))
 
 m_t1 <- mean(participant_means$mean_error_to_other_t1, na.rm = TRUE)
 s_t1 <- sd(participant_means$mean_error_to_other_t1, na.rm = TRUE)
@@ -1570,6 +1811,10 @@ print(cohen_d_t1_manual)
 t_test_mean_t2 <- t.test(participant_means$mean_error_to_other_t2, mu = 90)
 print("Test 2")
 print(t_test_mean_t2)
+
+# Extract CI
+ci_t2 <- t_test_mean_t2$conf.int
+cat(sprintf("95%% CI: [%.2f, %.2f]\n", ci_t2[1], ci_t2[2]))
 
 m_t2 <- mean(participant_means$mean_error_to_other_t2, na.rm = TRUE)
 s_t2 <- sd(participant_means$mean_error_to_other_t2, na.rm = TRUE)
@@ -1583,6 +1828,10 @@ t_test_t1_vs_t2 <- t.test(participant_means$mean_error_to_other_t1,
 
 print("Comparison of Test 1 and Test 2 (WM)")
 print(t_test_t1_vs_t2)
+
+# Extract CI
+ci_paired <- t_test_t1_vs_t2$conf.int
+cat(sprintf("95%% CI: [%.2f, %.2f]\n", ci_paired[1], ci_paired[2]))
 
 # Compute the difference between paired samples
 differences <- participant_means$mean_error_to_other_t1 - participant_means$mean_error_to_other_t2

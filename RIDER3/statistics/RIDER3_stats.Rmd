@@ -53,7 +53,9 @@ library(hrbrthemes)#nice plotting
 library(viridis)#nice plotting
 library(gridExtra)
 library(plotly)# intersczive plotting
- library(ggpubr)
+library(ggpubr)
+library(afex)
+library(effectsize)
 `%notin%` <- Negate(`%in%`)
 ```
 
@@ -387,10 +389,10 @@ print("paired t test between Test 1 and 2 in WM")
 pairwise_results <- WM_data_summary %>%
   pairwise_t_test(
     mean ~ trial_type_new, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 effect_sizes <- WM_data_summary %>%
-  cohens_d(mean ~ trial_type_new, paired = TRUE)
+  rstatix::cohens_d(mean ~ trial_type_new, paired = TRUE)
 
 pairwise_results <- pairwise_results %>%
   left_join(effect_sizes, by = c(".y.", "group1", "group2"))
@@ -450,6 +452,26 @@ summary_image_pres$image_presentation <- factor(summary_image_pres$image_present
 res.aov_image_presWM <- anova_test(data = summary_image_pres, dv = mean, wid = participant, within = c(image_presentation,trial_type_new))
 
 get_anova_table(res.aov_image_presWM)
+
+summary_image_pres$image_presentation <- factor(summary_image_pres$image_presentation)
+summary_image_pres$trial_type_new     <- factor(summary_image_pres$trial_type_new)
+
+# Fit repeated-measures ANOVA with afex
+fit_image_presWM <- aov_ez(
+  id     = "participant",
+  dv     = "mean",
+  within = c("image_presentation", "trial_type_new"),
+  data   = summary_image_pres
+)
+
+# Get partial eta² with 95% CI
+eta_image_presWM <- eta_squared(
+  fit_image_presWM,
+  partial = TRUE,
+  ci = 0.95
+)
+
+eta_image_presWM
 
 ```
 
@@ -516,11 +538,11 @@ LTM_data_summary <- filtered_data %>%
 paired_t_test_results <- LTM_data_summary %>%
   pairwise_t_test(
     mean ~ trial_type_new, paired = TRUE,
-    p.adjust.method = "holm"
+    p.adjust.method = "holm",detailed = TRUE
   )
 
 effect_sizes <- LTM_data_summary %>%
-  cohens_d(mean ~ trial_type_new, paired = TRUE)
+  rstatix::cohens_d(mean ~ trial_type_new, paired = TRUE)
 
 
 paired_t_test_results <- paired_t_test_results %>%
@@ -538,10 +560,10 @@ print("And here are all the possible tests with effect sizes for a better overvi
 paired_t_test_results <- LTM_data_summary %>%
   pairwise_t_test(
     mean ~ trial_type_new, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 effect_sizes <- LTM_data_summary %>%
-  cohens_d(mean ~ trial_type_new, paired = TRUE)
+  rstatix::cohens_d(mean ~ trial_type_new, paired = TRUE)
 
 
 paired_t_test_results <- paired_t_test_results %>%
@@ -581,16 +603,16 @@ data_summary_LTM_load <-data_subset_load %>%
 pairwise_comparisons_LTM_load <- data_summary_LTM_load %>%
   pairwise_t_test(
     mean ~ sample_trials, paired = TRUE,
-    p.adjust.method = "holm")
+    p.adjust.method = "holm",detailed = TRUE)
 
 effect_sizes_LTM_load <- data_summary_LTM_load %>%
-  cohens_d(mean ~ sample_trials, paired = TRUE)
+  rstatix::cohens_d(mean ~ sample_trials, paired = TRUE)
 
-# Step 3: Join the effect sizes into the t-test results
+
 pairwise_comparisons_LTM_load <- pairwise_comparisons_LTM_load %>%
   left_join(effect_sizes_LTM_load, by = c(".y.", "group1", "group2"))
 
-# Step 4: View results
+
 pairwise_comparisons_LTM_load
 
 
@@ -606,19 +628,16 @@ sample_trials_mean
 ```{r RIDER3 2x2 ANOVA Results LTM , echo = FALSE}
 print("LTM: This 2  x 2 ANOVA focuses on the stimulus effects in the LTM task (1/2 sample, 1/2 test)")
 
-# Step 1: Filter rows based on stimulus_presentation
-
 filtered_data <- data_subset %>%
   filter(test %in% c("LTM"))
 
 filtered_data <- filtered_data %>%
   filter(image_presentation %in% c("Img2-Test1", "Img1-Test1", "Img2-Test2", "Img1-Test2"))
 
-# Step 2: Further filter rows based on exp_condition and task
+
 filtered_data <- filtered_data %>%
   filter(trial_type_new %in% c("Test 1", "Test 2"))
 
-# Step 3: Rename variable levels
 filtered_data <- filtered_data %>%
   mutate(image_presentation = sub("-Test1$", "", image_presentation),
          image_presentation = sub("-Test2$", "", image_presentation))
@@ -638,18 +657,38 @@ res.aov_image_presWM <- anova_test(data = summary_image_pres, dv = mean, wid = p
 
 get_anova_table(res.aov_image_presWM)
 
+
+summary_image_pres$image_presentation <- factor(summary_image_pres$image_presentation)
+summary_image_pres$trial_type_new     <- factor(summary_image_pres$trial_type_new)
+
+fit_image_presWM <- aov_ez(
+  id     = "participant",
+  dv     = "mean",
+  within = c("image_presentation", "trial_type_new"),
+  data   = summary_image_pres
+)
+
+# Compute partial eta² with 95% CI
+eta_image_presWM <- eta_squared(
+  fit_image_presWM,
+  partial = TRUE,
+  ci = 0.95
+)
+
+eta_image_presWM
+
 print("This t-test addresses the primacy effect in the LTM conditions, showing generally higher performance for WM Sample 1")
 LTM_t_test2 <- summary_image_pres %>%
   group_by(trial_type_new) %>%
   pairwise_t_test(
     mean ~ image_presentation, paired = TRUE,
-    p.adjust.method = "holm"
+    p.adjust.method = "holm",detailed = TRUE
   )
 
 # Add effect sizes per trial type
 effect_sizes_LTM <- summary_image_pres %>%
   group_by(trial_type_new) %>%
-  cohens_d(mean ~ image_presentation, paired = TRUE)
+  rstatix::cohens_d(mean ~ image_presentation, paired = TRUE)
 
 # Join results
 LTM_t_test2 <- LTM_t_test2 %>%
@@ -858,7 +897,12 @@ Exp1_2_comparison <- aov_ez("participant", "mean_LTM", combined_data_exp1_2,
 # Print the summary of the ANOVA results
 print(summary(Exp1_2_comparison))
 
+eta_exp1_2 <- eta_squared(
+  Exp1_2_comparison,
+  partial = TRUE,
+  ci = 0.95
+)
 
-
+eta_exp1_2
 
 ```
